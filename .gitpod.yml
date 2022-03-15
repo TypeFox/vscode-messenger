@@ -1,0 +1,7 @@
+tasks:
+  - before: npm install -g npm@^7.7.0
+    init: npm install
+
+vscode:
+  extensions:
+    - dbaeumer.vscode-eslint

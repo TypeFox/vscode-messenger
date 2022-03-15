@@ -1,0 +1,25 @@
+{
+  "name": "vscode-webview-tools",
+  "private": true,
+  "engineStrict": true,
+  "engines": {
+    "npm": "^7.7.0"
+  },
+  "scripts": {
+    "prepare": "npm run clean && npm run build",
+    "clean": "rimraf \"packages/**/lib\" \"packages/**/*.tsbuildinfo\"",
+    "build": "tsc -b tsconfig.build.json",
+    "watch": "tsc -b tsconfig.build.json -w",
+    "test": "echo 'No tests specified yet.'",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.6",
+    "@typescript-eslint/eslint-plugin": "^5.15.0",
+    "eslint": "^8.11.0",
+    "rimraf": "^3.0.2"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "vscode-messenger-webview",
+  "version": "0.0.0",
+  "description": "VS Code Messenger: webview integration",
+  "keywords": [
+    "vscode",
+    "webview",
+    "rpc",
+    "messaging"
+  ],
+  "license": "MIT",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "clean": "rimraf lib",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "publish:next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i minor)-next.$(git rev-parse --short HEAD)\" && npm publish --tag next",
+    "publish:latest": "npm publish --tag latest"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.15.0",
+    "@typescript-eslint/parser": "^5.15.0",
+    "eslint": "^8.11.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.6.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TypeFox/vscode-webview-tools",
+    "directory": "packages/vscode-messenger-webview"
+  },
+  "bugs": "https://github.com/TypeFox/vscode-webview-tools/issues",
+  "author": {
+    "name": "TypeFox",
+    "url": "https://www.typefox.io"
+  }
+}
