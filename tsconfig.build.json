@@ -4,6 +4,6 @@
     "references": [
         { "path": "packages/vscode-messenger-common" },
         { "path": "packages/vscode-messenger-webview" },
-        { "path": "packages/vscode-messenger-extension" }
+        { "path": "packages/vscode-messenger" }
     ]
 }

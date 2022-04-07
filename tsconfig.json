@@ -12,9 +12,6 @@
     "strictPropertyInitialization": false,
     "noUnusedLocals": true,
     "noImplicitReturns": true,
-    "types": [
-      "node"
-    ],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true

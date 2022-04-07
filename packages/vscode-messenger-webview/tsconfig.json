@@ -1,14 +1,21 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
     "rootDir": "src",
     "outDir": "lib"
   },
+  "references": [
+    { "path": "../vscode-messenger-common" }
+  ],
   "include": [
-     "src/**/*"
+    "src/**/*"
   ],
   "exclude": [
-     "lib",
-     "node_modules"
+    "lib",
+    "node_modules"
   ]
 }
