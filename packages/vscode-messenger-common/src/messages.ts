@@ -104,3 +104,12 @@ export interface MessengerAPI {
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
 }
+
+export function createMessage<P, R>(id: string, type: RequestType<P, R>, receiver: MessageParticipant, params: P): JsonAny {
+    return {
+        id: id,
+        method: type.method,
+        receiver: JSON.stringify(receiver),
+        params: JSON.stringify(params), // TODO handle properly
+    };
+}
