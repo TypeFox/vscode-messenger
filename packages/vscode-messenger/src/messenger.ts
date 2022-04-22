@@ -5,19 +5,19 @@
  ******************************************************************************/
 
 import * as vscode from 'vscode';
-import { createMessage, isRequestMessage, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
+import { createMessage, isNotificationMessage, isRequestMessage, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
 
-    readonly idProvider: IdProvider = new IdProvider();
+    protected readonly idProvider: IdProvider = new IdProvider();
 
-    readonly viewTypeRegistry: Map<string, Set<vscode.WebviewView>> = new Map();
+    protected readonly viewTypeRegistry: Map<string, Set<vscode.WebviewView>> = new Map();
 
     // TODO use BiMap?
-    readonly viewRegistry: Map<string, vscode.WebviewView> = new Map();
-    readonly idRegistry: Map<vscode.WebviewView, string> = new Map();
+    protected readonly viewRegistry: Map<string, vscode.WebviewView> = new Map();
+    protected readonly idRegistry: Map<vscode.WebviewView, string> = new Map();
 
-    readonly requests = new Map();
+    protected readonly requests = new Map();
 
     registerWebviewPanel(panel: vscode.WebviewPanel): void {
         // TODO
@@ -58,14 +58,18 @@ export class Messenger implements MessengerAPI {
                     const response: ResponseMessage = { id: msg.id, receiver: msg.sender ?? {}, result };
                     view.webview.postMessage(response);
                 }
+            } else if(isNotificationMessage(msg)) {
+                const handler = this.handlerRegistry.get(msg.method);
+                if (handler) {
+                    handler(msg.params, msg.sender);
+                }
             } else {
-                // TODO handle response
                 console.error(`Message type is not handled yet: ${msg}`);
             }
         });
     }
 
-    readonly handlerRegistry = new Map();
+    protected readonly handlerRegistry = new Map();
 
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
         this.handlerRegistry.set(type.method, handler);
@@ -130,7 +134,7 @@ export class Messenger implements MessengerAPI {
 
     private id = 0;
 
-    private createMsgId(): string {
+    protected createMsgId(): string {
         return 'msgId_' + this.id++;
     }
 

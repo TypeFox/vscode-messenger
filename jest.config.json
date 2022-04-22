@@ -1,0 +1,7 @@
+{
+    "preset": "ts-jest",
+    "roots": [
+        "<rootDir>/packages/vscode-messenger/tests"
+    ],
+    "testEnvironment": "node"
+}

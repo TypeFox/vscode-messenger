@@ -10,14 +10,17 @@
     "clean": "rimraf \"packages/**/lib\" \"packages/**/*.tsbuildinfo\"",
     "build": "tsc -b tsconfig.build.json",
     "watch": "tsc -b tsconfig.build.json -w",
-    "test": "echo 'No tests specified yet.'",
+    "test": "jest",
     "lint": "npm run lint --workspaces"
   },
   "devDependencies": {
+    "@types/jest": "^27.4.1",
     "@types/node": "^12.12.6",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "eslint": "^8.11.0",
-    "rimraf": "^3.0.2"
+    "jest": "^27.5.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^27.1.4"
   },
   "workspaces": [
     "packages/*"
