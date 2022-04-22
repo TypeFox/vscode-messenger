@@ -1,6 +1,6 @@
 {
   "name": "vscode-messenger-common",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "VS Code Messenger: common code shared by extension and webviews",
   "keywords": [
     "vscode",
