@@ -29,8 +29,7 @@ export class Messenger implements MessengerAPI {
     }
 
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
-        createMessage(this.createMsgId(), type, receiver, params);
-        // FIXME implement
+        this.vscode.postMessage(createMessage(this.createMsgId(), type, receiver, params));
     }
 
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {

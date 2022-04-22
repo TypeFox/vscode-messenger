@@ -5,21 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Jest: Run All",
+            "name": "Jest: Extension test",
             "type": "node",
             "request": "launch",
-            "env": {
-                "HISTFILE" : "/dev/null"
-            },
             "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
             "args": [
                 "--config=${workspaceFolder}/jest.config.json",
-                "--verbose",
                 "-i",
                 "--no-cache",
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
         },
+        {
+            "name": "Jest: Webview test",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
+            "args": [
+                "--config=${workspaceFolder}/packages/vscode-messenger-webview/jest.config.json",
+                "-i",
+                "--no-cache",
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        }
     ]
 }

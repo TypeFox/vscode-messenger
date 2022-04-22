@@ -1,7 +1,8 @@
 {
     "preset": "ts-jest",
-    "roots": [
-        "<rootDir>/packages/vscode-messenger/tests"
-    ],
-    "testEnvironment": "node"
+    "projects": [
+        "<rootDir>/packages/vscode-messenger/jest.config.json",
+        "<rootDir>/packages/vscode-messenger-webview/jest.config.json"
+    ]
+
 }

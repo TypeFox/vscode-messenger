@@ -15,25 +15,24 @@ const TEST_VIEW_TYPE = 'test.view.type';
 const simpleNotification: NotificationType<string> = { method: 'simpleNotification' };
 
 describe('Simple test', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let webView: any;
 
     beforeAll(() => {
         webView = {
             viewType: TEST_VIEW_TYPE,
             webview: {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onDidReceiveMessage: (event: Event<string>) => {
                     webView.receivedMassages.push(event);
                     return;
                 },
                 postMessage: (message: any) => {
-                    webView.postMessages.push(message);
+                    webView.messages.push(message);
                     return true;
                 }
             },
             onDidDispose: () => {
                 webView.receivedMassages = [];
+                webView.messages = [];
                 return;
             },
             visible: false,
@@ -42,7 +41,7 @@ describe('Simple test', () => {
                 throw new Error('Function not implemented.');
             },
             eventListener: [],
-            postMessages: [],
+            messages: [],
         };
     });
 
@@ -55,7 +54,7 @@ describe('Simple test', () => {
         expect(webView.messages[0]).toMatchObject(
             {
                 id: 'msgId_0',
-                method: simpleNotification.method,
+                method: 'simpleNotification',
                 receiver: '{"webviewType":"test.view.type"}',
                 params: '"ping"'
             }
