@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 import * as vscode from 'vscode';
-import { createMessage, isNotificationMessage, isRequestMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
+import { createMessage, isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
 
@@ -58,10 +58,24 @@ export class Messenger implements MessengerAPI {
                     const response: ResponseMessage = { id: msg.id, receiver: msg.sender ?? {}, result };
                     view.webview.postMessage(response);
                 }
-            } else if(isNotificationMessage(msg)) {
+            } else if (isNotificationMessage(msg)) {
                 const handler = this.handlerRegistry.get(msg.method);
                 if (handler) {
                     handler(msg.params, msg.sender);
+                }
+            } else if (isResponseMessage(msg)) {
+                console.debug(`Response message: ${msg.id} `);
+                const request = this.requests.get(msg.id);
+                if (request) {
+                    if (msg.error) {
+                        request.reject(msg.error);
+                    } else {
+                        request.resolve(msg.result);
+                    }
+                    this.requests.delete(msg.id);
+                } else {
+                    console.warn(`Received response for untracked message id: ${msg.id}. Receiver was: ${msg.receiver?.webviewId ?? msg.receiver?.webviewType}`);
+                    return;
                 }
             } else {
                 console.error(`Message type is not handled yet: ${msg}`);
@@ -87,7 +101,6 @@ export class Messenger implements MessengerAPI {
         const result = new Promise<R>((resolve, reject) => {
             this.requests.set(msgId, { resolve, reject });
         });
-        this.requests.set(msgId, result);
         if (receiver.webviewId) {
             const receiverView = this.viewRegistry.get(receiver.webviewId);
             if (receiverView) {
