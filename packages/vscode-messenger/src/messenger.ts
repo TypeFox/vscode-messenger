@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 import * as vscode from 'vscode';
-import { createMessage, isNotificationMessage, isRequestMessage, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
+import { createMessage, isNotificationMessage, isRequestMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType, ResponseMessage } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
 
@@ -71,15 +71,15 @@ export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry = new Map();
 
-    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
+    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
         this.handlerRegistry.set(type.method, handler);
     }
 
-    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
+    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
         this.handlerRegistry.set(type.method, handler);
     }
 
-    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+    async sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
         if (!receiver.webviewId && !receiver.webviewType) {
             throw new Error("A Request needs a receiver. Neither webviewId nor webviewType was set. If you don't have a receiver, use notification instead");
         }
@@ -109,7 +109,7 @@ export class Messenger implements MessengerAPI {
         return result;
     }
 
-    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
+    sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
         const msgId = this.createMsgId();
         const sender = async (view: vscode.WebviewView) => {
             const result = await view.webview.postMessage(createMessage(msgId, type, receiver, params));

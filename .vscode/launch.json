@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Jest: Extension test",
+            "name": "Jest: All Tests",
             "type": "node",
             "request": "launch",
             "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",

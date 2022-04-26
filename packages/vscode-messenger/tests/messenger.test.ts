@@ -55,8 +55,10 @@ describe('Simple test', () => {
             {
                 id: 'msgId_0',
                 method: 'simpleNotification',
-                receiver: '{"webviewType":"test.view.type"}',
-                params: '"ping"'
+                receiver: {
+                    webviewType: 'test.view.type'
+                },
+                params: 'ping'
             }
         );
     });
