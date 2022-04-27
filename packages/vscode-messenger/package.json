@@ -24,6 +24,9 @@
     "publish:next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i minor)-next.$(git rev-parse --short HEAD)\" && npm publish --tag next",
     "publish:latest": "npm publish --tag latest"
   },
+  "dependencies": {
+    "vscode-messenger-common": "0.1"
+  },
   "devDependencies": {
     "@types/jest": "^27.4.1",
     "@types/vscode": "~1.53.0",
