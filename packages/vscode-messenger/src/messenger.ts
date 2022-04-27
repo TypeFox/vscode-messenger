@@ -101,11 +101,12 @@ export class Messenger implements MessengerAPI {
         const result = new Promise<R>((resolve, reject) => {
             this.requests.set(msgId, { resolve, reject });
         });
+        const prepareMsg = createMessage(msgId, type, receiver, params);
         if (receiver.webviewId) {
             const receiverView = this.viewRegistry.get(receiver.webviewId);
             if (receiverView) {
                 // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
-                const result = await receiverView.webview.postMessage(createMessage(msgId, type, receiver, params));
+                const result = await receiverView.webview.postMessage(prepareMsg);
                 if (!result) {
                     console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
                 }
@@ -113,7 +114,7 @@ export class Messenger implements MessengerAPI {
         } else if (receiver.webviewType) {
             // TODO what to do with a result if several views exists?
             this.viewTypeRegistry.get(receiver.webviewType)?.forEach(async (view) => {
-                const result = await view.webview.postMessage(createMessage(msgId, type, receiver, params));
+                const result = await view.webview.postMessage(prepareMsg);
                 if (!result) {
                     console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
                 }
@@ -123,9 +124,12 @@ export class Messenger implements MessengerAPI {
     }
 
     sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
-        const msgId = this.createMsgId();
         const sender = async (view: vscode.WebviewView) => {
-            const result = await view.webview.postMessage(createMessage(msgId, type, receiver, params));
+            const result = await view.webview.postMessage({
+                method: type.method,
+                receiver: receiver as JsonAny,
+                params: params
+            });
             if (!result) {
                 console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
             }

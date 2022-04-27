@@ -4,7 +4,7 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { createMessage, isRequestMessage, isResponseMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType } from 'vscode-messenger-common';
+import { createMessage, isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType } from 'vscode-messenger-common';
 import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
@@ -29,7 +29,12 @@ export class Messenger implements MessengerAPI {
     }
 
     sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
-        this.vscode.postMessage(createMessage(this.createMsgId(), type, receiver, params));
+        this.vscode.postMessage(
+            {
+                method: type.method,
+                receiver: receiver as JsonAny,
+                params: params
+            });
     }
 
     onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
@@ -58,7 +63,13 @@ export class Messenger implements MessengerAPI {
                     return;
                 }
             } else if (isRequestMessage(data)) {
-                console.debug(`Request message: ${data.id} `);
+                console.debug(`Request message: with ${data.id} for ${data.method}(${data.params})`);
+                const handler = this.handlerRegistry.get(data.method);
+                if (handler) {
+                    handler(data.params);
+                }
+            }  else if (isNotificationMessage(data)) {
+                console.debug(`Notification message: ${data.method}(${data.params})`);
                 const handler = this.handlerRegistry.get(data.method);
                 if (handler) {
                     handler(data.params);

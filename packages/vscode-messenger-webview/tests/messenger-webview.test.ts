@@ -88,7 +88,7 @@ describe('Simple test', () => {
             return result;
         });
 
-        postWindowMsg({ id: 'req_id', method: 'stringRequest', params: 'ping' });
+        postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
 
         expect(await responder).toBe('handled:ping');
     });
@@ -107,13 +107,13 @@ describe('Simple test', () => {
             return;
         });
 
-        postWindowMsg({ id: 'note_id', method: 'stringNotification', params: 'pong' });
+        postWindowMsg({ method: 'stringNotification', params: 'pong' });
         expect(await responder).toBe('handled:pong');
     });
 
     test('Check unique msg id', () => {
-        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'ping1');
-        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'ping2');
+        new Messenger(vsCodeApi).sendRequest(stringNotification, {}, 'ping1');
+        new Messenger(vsCodeApi).sendRequest(stringNotification, {}, 'ping2');
 
         const message1 = vsCodeApi.messages[0] as unknown as any;
         const message2 = vsCodeApi.messages[1] as unknown as any;
@@ -122,6 +122,12 @@ describe('Simple test', () => {
         expect(message2.id.startsWith('viewMsgId_0_')).toBeTruthy();
 
         expect(message1.id).not.toBe(message2.id);
+    });
+
+    test('Check no msg id for notifications', () => {
+        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'note');
+        const message = vsCodeApi.messages[0] as unknown as any;
+        expect(message.id).toBeUndefined();
     });
 
 });

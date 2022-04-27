@@ -64,9 +64,9 @@ describe('Simple test', () => {
         messenger.registerWebviewView(webView);
         messenger.sendNotification(simpleNotification, { webviewType: TEST_VIEW_TYPE }, 'ping');
 
+        expect(webView.messages[0].id).toBeUndefined();
         expect(webView.messages[0]).toMatchObject(
             {
-                id: 'msgId_0',
                 method: 'notification',
                 receiver: {
                     webviewType: 'test.view.type'
@@ -104,7 +104,7 @@ describe('Simple test', () => {
             handled = true;
             return params;
         });
-        webView.webview.postMessage({ ...simpleRequest, id: 'req_id' });
+        webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id' });
         expect(handled).toBe(true);
     });
 });
