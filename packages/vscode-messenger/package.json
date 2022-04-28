@@ -1,6 +1,6 @@
 {
   "name": "vscode-messenger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "VS Code Messenger: extension integration",
   "keywords": [
     "vscode",
@@ -21,7 +21,7 @@
     "watch": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "test": "jest",
-    "prepare-next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i minor)-next.$(git rev-parse --short HEAD)\"",
+    "prepare-next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i micro)-next.$(git rev-parse --short HEAD)\"",
     "publish:next": "npm publish --tag next",
     "publish:latest": "npm publish --tag latest"
   },

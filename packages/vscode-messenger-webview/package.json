@@ -1,6 +1,6 @@
 {
   "name": "vscode-messenger-webview",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "VS Code Messenger: webview integration",
   "keywords": [
     "vscode",
