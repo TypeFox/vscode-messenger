@@ -19,10 +19,10 @@ export class Messenger implements MessengerAPI {
 
     protected readonly requests = new Map();
 
-    protected readonly options: MessengerOptions = new MessengerOptions();
+    protected readonly options: MessengerOptions = { ignoreHiddenViews: true, debugLog: false};
 
     constructor(options?: MessengerOptions) {
-        if (options) this.options = options;
+        if (options) this.options = {...this.options, ...options};
     }
     registerWebviewPanel(panel: vscode.WebviewPanel): void {
         // TODO
@@ -114,7 +114,7 @@ export class Messenger implements MessengerAPI {
             const viewRef = receiver.webviewId ?? receiver.webviewType;
             if (!view.visible && this.options.ignoreHiddenViews) {
                 const req = this.requests.get(msgId);
-                req.reject(`Skip request for hidden view: ${viewRef}`);
+                req.reject({ error: `Skip request for hidden view: ${viewRef}` });
                 this.requests.delete(req);
             } else {
                 // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
@@ -143,14 +143,15 @@ export class Messenger implements MessengerAPI {
             const viewRef = receiver.webviewId ?? receiver.webviewType;
             if (!view.visible && this.options.ignoreHiddenViews) {
                 this.log(`Skip notification for hidden view with id: ${viewRef}`);
-            }
-            const result = await view.webview.postMessage({
-                method: type.method,
-                receiver: receiver as JsonAny,
-                params: params
-            });
-            if (!result) {
-                this.log(`Failed to send message to view with id: ${viewRef}`, 'error');
+            } else {
+                const result = await view.webview.postMessage({
+                    method: type.method,
+                    receiver: receiver as JsonAny,
+                    params: params
+                });
+                if (!result) {
+                    this.log(`Failed to send message to view with id: ${viewRef}`, 'error');
+                }
             }
         };
         if (receiver.webviewId || receiver.webviewType) {
@@ -193,9 +194,9 @@ export class Messenger implements MessengerAPI {
         }
     }
 }
-export class MessengerOptions {
-    readonly ignoreHiddenViews = true;
-    readonly debugLog = false;
+export interface MessengerOptions {
+    ignoreHiddenViews?: boolean;
+    debugLog?: boolean;
 }
 class IdProvider {
 

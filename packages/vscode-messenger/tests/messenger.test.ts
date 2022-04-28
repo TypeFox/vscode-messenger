@@ -56,11 +56,12 @@ describe('Simple test', () => {
 
     afterEach(() => {
         webView.messages = [];
+        webView.visible = true;
     });
 
     test('Send notification to a View', () => {
 
-        const messenger = new Messenger();
+        const messenger = new Messenger({ debugLog: true });
         messenger.registerWebviewView(webView);
         messenger.sendNotification(simpleNotification, { webviewType: TEST_VIEW_TYPE }, 'ping');
 
@@ -107,5 +108,19 @@ describe('Simple test', () => {
         webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id', params: 'test' });
         expect(handled).toBe(true);
         expect(webView.messages[1]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
+    });
+
+    test('Do not handle events for hidden view', async () => {
+        const messenger = new Messenger();
+        webView.visible = false;
+        messenger.registerWebviewView(webView);
+
+        // ignore notifications
+        messenger.sendNotification(simpleNotification, { webviewType: TEST_VIEW_TYPE }, 'note');
+        expect(webView.messages.length).toBe(0);
+
+        // reject requests
+        await expect(messenger.sendRequest(simpleRequest, { webviewType: TEST_VIEW_TYPE }, 'ping'))
+            .rejects.toEqual({ error: 'Skip request for hidden view: test.view.type' });
     });
 });
