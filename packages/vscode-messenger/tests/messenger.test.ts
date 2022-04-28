@@ -45,7 +45,7 @@ describe('Simple test', () => {
                 webView.messages = [];
                 return;
             },
-            visible: false,
+            visible: true,
             onDidChangeVisibility: undefined,
             show: (preserveFocus?: boolean) => {
                 throw new Error('Function not implemented.');
@@ -77,7 +77,6 @@ describe('Simple test', () => {
     });
 
     test('Send request to a View', async () => {
-
         const messenger = new Messenger();
         messenger.registerWebviewView(webView);
 
@@ -85,15 +84,15 @@ describe('Simple test', () => {
     });
 
     test('Handle notification', () => {
-
         const messenger = new Messenger();
         messenger.registerWebviewView(webView);
-        let handled = false;
+        let handled = '';
         messenger.onNotification(simpleNotification, (params: string) => {
-            handled = true;
+            handled = 'handled:' + params;
         });
-        webView.webview.postMessage(simpleNotification);
-        expect(handled).toBe(true);
+        // simulate webview note
+        webView.webview.postMessage({ ...simpleNotification, params: 'test' });
+        expect(handled).toBe('handled:test');
     });
 
     test('Handle request', () => {
@@ -102,9 +101,11 @@ describe('Simple test', () => {
         let handled = false;
         messenger.onRequest(simpleRequest, (params: string) => {
             handled = true;
-            return params;
+            return 'handled:' + params;
         });
-        webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id' });
+        // simulate webview request
+        webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id', params: 'test' });
         expect(handled).toBe(true);
+        expect(webView.messages[1]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
     });
 });

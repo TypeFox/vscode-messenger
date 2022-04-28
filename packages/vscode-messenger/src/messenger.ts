@@ -19,6 +19,11 @@ export class Messenger implements MessengerAPI {
 
     protected readonly requests = new Map();
 
+    protected readonly options: MessengerOptions = new MessengerOptions();
+
+    constructor(options?: MessengerOptions) {
+        if (options) this.options = options;
+    }
     registerWebviewPanel(panel: vscode.WebviewPanel): void {
         // TODO
         throw new Error(`registerWebviewPanel is not supported yet. ViewPanel: ${panel.title} type: ${panel.viewType}`);
@@ -33,7 +38,7 @@ export class Messenger implements MessengerAPI {
             }
             const removed = this.viewTypeRegistry.get(view.viewType)?.delete(view);
             if (!removed) {
-                console.warn(`Attempt to remove not existing registry entry for View: ${view.title} type ${view.viewType} `);
+                this.log(`Attempt to remove not existing registry entry for View: ${view.title} type ${view.viewType}`, 'warn');
             }
         });
 
@@ -52,6 +57,7 @@ export class Messenger implements MessengerAPI {
 
         view.webview.onDidReceiveMessage((msg) => {
             if (isRequestMessage(msg)) {
+                this.log(`Host received Request message: ${msg.id}`);
                 const handler = this.handlerRegistry.get(msg.method);
                 if (handler) {
                     const result = handler(msg.params, msg.sender);
@@ -59,12 +65,13 @@ export class Messenger implements MessengerAPI {
                     view.webview.postMessage(response);
                 }
             } else if (isNotificationMessage(msg)) {
+                this.log(`Host received Notification message: ${msg.method} `);
                 const handler = this.handlerRegistry.get(msg.method);
                 if (handler) {
                     handler(msg.params, msg.sender);
                 }
             } else if (isResponseMessage(msg)) {
-                console.debug(`Response message: ${msg.id} `);
+                this.log(`Host received Response message: ${msg.id} `);
                 const request = this.requests.get(msg.id);
                 if (request) {
                     if (msg.error) {
@@ -74,11 +81,11 @@ export class Messenger implements MessengerAPI {
                     }
                     this.requests.delete(msg.id);
                 } else {
-                    console.warn(`Received response for untracked message id: ${msg.id}. Receiver was: ${msg.receiver?.webviewId ?? msg.receiver?.webviewType}`);
+                    this.log(`Received response for untracked message id: ${msg.id}. Receiver was: ${msg.receiver?.webviewId ?? msg.receiver?.webviewType}`, 'warn');
                     return;
                 }
             } else {
-                console.error(`Message type is not handled yet: ${msg}`);
+                this.log(`Message type is not handled yet: ${msg}`, 'error');
             }
         });
     }
@@ -97,27 +104,35 @@ export class Messenger implements MessengerAPI {
         if (!receiver.webviewId && !receiver.webviewType) {
             throw new Error("A Request needs a receiver. Neither webviewId nor webviewType was set. If you don't have a receiver, use notification instead");
         }
+
         const msgId = this.createMsgId();
         const result = new Promise<R>((resolve, reject) => {
             this.requests.set(msgId, { resolve, reject });
         });
-        const prepareMsg = createMessage(msgId, type, receiver, params);
+
+        const sender = async (view: vscode.WebviewView) => {
+            const viewRef = receiver.webviewId ?? receiver.webviewType;
+            if (!view.visible && this.options.ignoreHiddenViews) {
+                const req = this.requests.get(msgId);
+                req.reject(`Skip request for hidden view: ${viewRef}`);
+                this.requests.delete(req);
+            } else {
+                // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
+                const posted = await view.webview.postMessage(createMessage(msgId, type, receiver, params));
+                if (!posted) {
+                    this.log(`Failed to send message to view: ${viewRef}`, 'error');
+                }
+            }
+        };
         if (receiver.webviewId) {
             const receiverView = this.viewRegistry.get(receiver.webviewId);
             if (receiverView) {
-                // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
-                const result = await receiverView.webview.postMessage(prepareMsg);
-                if (!result) {
-                    console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
-                }
+                sender(receiverView);
             }
         } else if (receiver.webviewType) {
             // TODO what to do with a result if several views exists?
-            this.viewTypeRegistry.get(receiver.webviewType)?.forEach(async (view) => {
-                const result = await view.webview.postMessage(prepareMsg);
-                if (!result) {
-                    console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
-                }
+            this.viewTypeRegistry.get(receiver.webviewType)?.forEach((view) => {
+                sender(view);
             });
         }
         return result;
@@ -125,13 +140,17 @@ export class Messenger implements MessengerAPI {
 
     sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
         const sender = async (view: vscode.WebviewView) => {
+            const viewRef = receiver.webviewId ?? receiver.webviewType;
+            if (!view.visible && this.options.ignoreHiddenViews) {
+                this.log(`Skip notification for hidden view with id: ${viewRef}`);
+            }
             const result = await view.webview.postMessage({
                 method: type.method,
                 receiver: receiver as JsonAny,
                 params: params
             });
             if (!result) {
-                console.error(`Failed to send message to view with id: ${receiver.webviewId}`);
+                this.log(`Failed to send message to view with id: ${viewRef}`, 'error');
             }
         };
         if (receiver.webviewId || receiver.webviewType) {
@@ -152,11 +171,32 @@ export class Messenger implements MessengerAPI {
     private id = 0;
 
     protected createMsgId(): string {
-        return 'msgId_' + this.id++;
+        return 'req_' + this.id++;
     }
 
+    protected log(text: string, level: 'debug' | 'warn' | 'error' = 'debug'): void {
+        switch (level) {
+            case 'debug': {
+                if (this.options.debugLog) {
+                    console.debug(text);
+                }
+                break;
+            }
+            case 'warn': {
+                console.warn(text);
+                break;
+            }
+            case 'error': {
+                console.error(text);
+                break;
+            }
+        }
+    }
 }
-
+export class MessengerOptions {
+    readonly ignoreHiddenViews = true;
+    readonly debugLog = false;
+}
 class IdProvider {
 
     counter = 0;

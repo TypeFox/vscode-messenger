@@ -4,7 +4,11 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { createMessage, isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType, RequestHandler, RequestType } from 'vscode-messenger-common';
+import {
+    createMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
+    JsonAny, MessageParticipant, MessengerAPI, NotificationHandler, NotificationType,
+    RequestHandler, RequestType
+} from 'vscode-messenger-common';
 import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
@@ -13,9 +17,14 @@ export class Messenger implements MessengerAPI {
     private readonly requests = new Map();
 
     private readonly vscode: VsCodeApi;
+    private _logDebug = false;
 
     constructor(vscode?: VsCodeApi) {
         this.vscode = vscode ?? acquireVsCodeApi();
+    }
+
+    public set logDebug(logDebug: boolean) {
+        this._logDebug = logDebug;
     }
 
     sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
@@ -49,7 +58,7 @@ export class Messenger implements MessengerAPI {
         window.addEventListener('message', event => {
             const data = event.data;
             if (isResponseMessage(data)) {
-                console.debug(`Response message: ${data.id} `);
+                this.log(`View received Response message: ${data.id} `);
                 const request = this.requests.get(data.id);
                 if (request) {
                     if (data.error) {
@@ -63,13 +72,14 @@ export class Messenger implements MessengerAPI {
                     return;
                 }
             } else if (isRequestMessage(data)) {
-                console.debug(`Request message: with ${data.id} for ${data.method}(${data.params})`);
+                this.log(`View received Request message: with ${data.id} for ${data.method}(${data.params})`);
                 const handler = this.handlerRegistry.get(data.method);
                 if (handler) {
-                    handler(data.params);
+                    const result = handler(data.params);
+                    this.vscode.postMessage({ id: data.id, receiver: data.sender as JsonAny ?? {}, result });
                 }
-            }  else if (isNotificationMessage(data)) {
-                console.debug(`Notification message: ${data.method}(${data.params})`);
+            } else if (isNotificationMessage(data)) {
+                this.log(`View received Notification message: ${data.method}(${data.params})`);
                 const handler = this.handlerRegistry.get(data.method);
                 if (handler) {
                     handler(data.params);
@@ -79,13 +89,18 @@ export class Messenger implements MessengerAPI {
         return this;
     }
 
+    private log(text: string): void{
+        if(this._logDebug) {
+            console.debug(text);
+        }
+    }
     private id = 0;
 
     protected createMsgId(): string {
         // messenger is created each time a view gets visible.
         const cryptoRand = window.crypto.getRandomValues(new Uint8Array(10));
         const rand = Array.from(cryptoRand).map(b => b.toString(16)).join('');
-        return 'viewMsgId_' + this.id++ + '_' + rand;
+        return 'req_' + this.id++ + '_' + rand;
     }
 
 }

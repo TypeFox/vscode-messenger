@@ -6,7 +6,7 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { JsonAny, NotificationType, RequestType } from 'vscode-messenger-common';
+import { isResponseMessage, JsonAny, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 import crypto from 'crypto';
 
@@ -21,7 +21,7 @@ const stringNotification: NotificationType<string> = { method: 'stringNotificati
 const stringRequest: RequestType<string, string> = { method: 'stringRequest' };
 
 describe('Simple test', () => {
-    let vsCodeApi: VsCodeApi & { messages: JsonAny[] };
+    let vsCodeApi: VsCodeApi & { messages: any[], onReceivedMessage: (message: any) => void };
 
     beforeAll(() => {
         vsCodeApi = {
@@ -30,21 +30,23 @@ describe('Simple test', () => {
                 // fake response
                 const anyMsg = (message as unknown as any);
                 postWindowMsg({ id: anyMsg.id, result: 'result:' + anyMsg.params });
+                vsCodeApi.onReceivedMessage(message);
                 return;
             },
             getState: () => { return; },
             setState: () => { return; },
-            messages: []
+            messages: [],
+            onReceivedMessage: (message: any) => { return; }
         };
     });
 
     afterEach(() => {
         vsCodeApi.messages = [];
+        vsCodeApi.onReceivedMessage = (message: any) => { return; };
     });
 
     test('Send request to extension', async () => {
-        const messenger = new Messenger(vsCodeApi);
-        messenger.start();
+        const messenger = new Messenger(vsCodeApi).start();
 
         const response = await messenger.sendRequest(stringRequest, {}, 'ping');
 
@@ -59,9 +61,7 @@ describe('Simple test', () => {
     });
 
     test('Send notification to extension', () => {
-
-        const messenger = new Messenger(vsCodeApi);
-        messenger.sendNotification(stringNotification, {}, 'ping');
+        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'ping');
 
         const message = vsCodeApi.messages[0] as unknown as any;
         delete message.id;
@@ -75,22 +75,22 @@ describe('Simple test', () => {
     });
 
     test('Handle request from an extension', async () => {
-
-        let resolver: any;
-        const responder = new Promise((resolve, reject) => {
-            resolver = resolve;
+        new Messenger(vsCodeApi).start().onRequest(stringRequest, (r: string) => {
+            return 'handled:' + r;
+        });
+        const expectation = new Promise<JsonAny | undefined>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = async (msg) => {
+                if (isResponseMessage(msg)) {
+                    resolve(msg.result);
+                } else {
+                    reject('not a response msg');
+                }
+            };
         });
 
-        const messenger = new Messenger(vsCodeApi).start();
-        messenger.onRequest(stringRequest, (r: string) => {
-            const result = 'handled:' + r;
-            resolver(result);
-            return result;
-        });
-
+        // simulate extension request
         postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
-
-        expect(await responder).toBe('handled:ping');
+        expect(await expectation).toBe('handled:ping');
     });
 
     test('Handle notification from an extension', async () => {
@@ -100,8 +100,7 @@ describe('Simple test', () => {
             resolver = resolve;
         });
 
-        const messenger = new Messenger(vsCodeApi).start();
-        messenger.onNotification(stringNotification, (note: string) => {
+        new Messenger(vsCodeApi).start().onNotification(stringNotification, (note: string) => {
             const result = 'handled:' + note;
             resolver(result);
             return;
@@ -118,8 +117,8 @@ describe('Simple test', () => {
         const message1 = vsCodeApi.messages[0] as unknown as any;
         const message2 = vsCodeApi.messages[1] as unknown as any;
 
-        expect(message1.id.startsWith('viewMsgId_0_')).toBeTruthy();
-        expect(message2.id.startsWith('viewMsgId_0_')).toBeTruthy();
+        expect(message1.id.startsWith('req_0_')).toBeTruthy();
+        expect(message2.id.startsWith('req_0_')).toBeTruthy();
 
         expect(message1.id).not.toBe(message2.id);
     });
