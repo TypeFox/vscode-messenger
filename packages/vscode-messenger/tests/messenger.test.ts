@@ -96,7 +96,7 @@ describe('Simple test', () => {
         expect(handled).toBe('handled:test');
     });
 
-    test('Handle request', () => {
+    test('Handle request', async () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(webView);
         let handled = false;
@@ -105,9 +105,32 @@ describe('Simple test', () => {
             return 'handled:' + params;
         });
         // simulate webview request
-        webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id', params: 'test' });
+        await webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id', params: 'test' });
         expect(handled).toBe(true);
         expect(webView.messages[1]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
+    });
+
+    test('Handle request async handler', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(webView);
+        let handled = false;
+        const promise = new Promise<void>((resolve, reject) => {
+            setTimeout(()=> {
+                resolve();
+            }, 50);});
+        messenger.onRequest(simpleRequest, async (params: string) => {
+            await promise;
+            handled = true;
+            return 'handled:' + params;
+        });
+        // simulate webview request
+        await webView.webview.postMessage({ ...simpleRequest, id: 'fake_req_id', params: 'test' });
+        await promise;
+        expect(handled).toBe(true);
+        // TODO do it better here
+        // wait for post massage again to get the response msg
+        await webView.webview.postMessage({ ...simpleNotification, id: 'fake_note_id', params: 'test' });
+        expect(webView.messages[2]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
     });
 
     test('Do not handle events for hidden view', async () => {

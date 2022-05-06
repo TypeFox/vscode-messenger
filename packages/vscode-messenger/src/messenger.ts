@@ -55,12 +55,12 @@ export class Messenger implements MessengerAPI {
         this.viewRegistry.set(viewId, view);
         this.idRegistry.set(view, viewId);
 
-        view.webview.onDidReceiveMessage((msg) => {
+        view.webview.onDidReceiveMessage(async (msg) => {
             if (isRequestMessage(msg)) {
                 this.log(`Host received Request message: ${msg.id}`);
                 const handler = this.handlerRegistry.get(msg.method);
                 if (handler) {
-                    const result = handler(msg.params, msg.sender);
+                    const result = await handler(msg.params, msg.sender);
                     const response: ResponseMessage = { id: msg.id, receiver: msg.sender ?? {}, result };
                     view.webview.postMessage(response);
                 }

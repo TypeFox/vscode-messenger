@@ -55,7 +55,7 @@ export class Messenger implements MessengerAPI {
     }
 
     start(): Messenger {
-        window.addEventListener('message', event => {
+        window.addEventListener('message', async event => {
             const data = event.data;
             if (isResponseMessage(data)) {
                 this.log(`View received Response message: ${data.id} `);
@@ -75,7 +75,7 @@ export class Messenger implements MessengerAPI {
                 this.log(`View received Request message: with ${data.id} for ${data.method}(${data.params})`);
                 const handler = this.handlerRegistry.get(data.method);
                 if (handler) {
-                    const result = handler(data.params);
+                    const result = await handler(data.params);
                     this.vscode.postMessage({ id: data.id, receiver: data.sender as JsonAny ?? {}, result });
                 }
             } else if (isNotificationMessage(data)) {

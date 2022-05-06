@@ -92,6 +92,29 @@ describe('Simple test', () => {
         postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
         expect(await expectation).toBe('handled:ping');
     });
+    test('Async Handle request from an extension', async () => {
+        new Messenger(vsCodeApi).start().onRequest(stringRequest, async (r: string) => {
+            const promise = new Promise<string>((resolve, reject) => {
+                setTimeout(() => {
+                    resolve(r);
+                }, 50);
+            });
+            return 'handled:' +  await promise;
+        });
+        const expectation = new Promise<JsonAny | undefined>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = (msg) => {
+                if (isResponseMessage(msg)) {
+                    resolve(msg.result);
+                } else {
+                    reject('not a response msg');
+                }
+            };
+        });
+
+        // simulate extension request
+        postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
+        expect(await expectation).toBe('handled:ping');
+    });
 
     test('Handle notification from an extension', async () => {
 
