@@ -79,7 +79,7 @@ describe('Simple test', () => {
             return 'handled:' + r;
         });
         const expectation = new Promise<JsonAny | undefined>((resolve, reject) => {
-            vsCodeApi.onReceivedMessage = async (msg) => {
+            vsCodeApi.onReceivedMessage = (msg) => {
                 if (isResponseMessage(msg)) {
                     resolve(msg.result);
                 } else {
