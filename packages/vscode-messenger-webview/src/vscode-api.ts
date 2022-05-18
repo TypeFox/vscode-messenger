@@ -4,15 +4,15 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { JsonAny } from 'vscode-messenger-common';
-
 /**
  * This API is provided by VS Code when the UI is loaded in a webview.
  */
 export declare function acquireVsCodeApi(): VsCodeApi;
 
 export interface VsCodeApi {
-    postMessage: (message: JsonAny) => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    postMessage: (message: any) => void
     getState(): unknown
-    setState(newState: JsonAny): void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setState(newState: any): void
 }

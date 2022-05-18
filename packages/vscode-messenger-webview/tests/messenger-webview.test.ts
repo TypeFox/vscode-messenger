@@ -6,7 +6,7 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { isResponseMessage, JsonAny, NotificationType, RequestType } from 'vscode-messenger-common';
+import { isRequestMessage, isResponseMessage, JsonAny, Message, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 import crypto from 'crypto';
 
@@ -25,11 +25,16 @@ describe('Simple test', () => {
 
     beforeAll(() => {
         vsCodeApi = {
-            postMessage: (message: JsonAny) => {
+            postMessage: (message: Message) => {
                 vsCodeApi.messages.push(message);
-                // fake response
-                const anyMsg = (message as unknown as any);
-                postWindowMsg({ id: anyMsg.id, result: 'result:' + anyMsg.params });
+                if (isRequestMessage(message)) {
+                    postWindowMsg({
+                        sender: {},
+                        receiver: { webviewId: 'test-view' },
+                        id: message.id,
+                        result: 'result:' + message.params
+                    });
+                }
                 vsCodeApi.onReceivedMessage(message);
                 return;
             },
@@ -89,9 +94,16 @@ describe('Simple test', () => {
         });
 
         // simulate extension request
-        postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
+        postWindowMsg({
+            sender: {},
+            receiver: { webviewId: 'test-view' },
+            id: 'request_id',
+            method: 'stringRequest',
+            params: 'ping'
+        });
         expect(await expectation).toBe('handled:ping');
     });
+
     test('Async Handle request from an extension', async () => {
         new Messenger(vsCodeApi).start().onRequest(stringRequest, async (r: string) => {
             const promise = new Promise<string>((resolve, reject) => {
@@ -112,12 +124,17 @@ describe('Simple test', () => {
         });
 
         // simulate extension request
-        postWindowMsg({ id: 'request_id', method: 'stringRequest', params: 'ping' });
+        postWindowMsg({
+            sender: {},
+            receiver: { webviewId: 'test-view' },
+            id: 'request_id',
+            method: 'stringRequest',
+            params: 'ping'
+        });
         expect(await expectation).toBe('handled:ping');
     });
 
     test('Handle notification from an extension', async () => {
-
         let resolver: any;
         const responder = new Promise((resolve, reject) => {
             resolver = resolve;
@@ -129,7 +146,12 @@ describe('Simple test', () => {
             return;
         });
 
-        postWindowMsg({ method: 'stringNotification', params: 'pong' });
+        postWindowMsg({
+            sender: {},
+            receiver: { webviewId: 'test-view' },
+            method: 'stringNotification',
+            params: 'pong'
+        });
         expect(await responder).toBe('handled:pong');
     });
 
