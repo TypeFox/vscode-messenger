@@ -6,7 +6,7 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { isRequestMessage, isResponseMessage, JsonAny, Message, NotificationType, RequestType } from 'vscode-messenger-common';
+import { isRequestMessage, isResponseMessage, JsonAny, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 import crypto from 'crypto';
 
@@ -174,8 +174,49 @@ describe('Simple test', () => {
         expect(message.id).toBeUndefined();
     });
 
+    test('Handle request handler error', async () => {
+        new Messenger(vsCodeApi).start().onRequest(stringRequest, (r: string, sender: MessageParticipant) => {
+            throw new Error(`Failed to handle request from: ${participantToString(sender)}`);
+        });
+        const expectation = new Promise<unknown>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = (msg) => {
+                if (isResponseMessage(msg)) {
+                    resolve(msg);
+                } else {
+                    reject('not a response msg');
+                }
+            };
+        });
+
+        // simulate extension request
+        postWindowMsg({
+            sender: {},
+            receiver: { webviewId: 'test-view' },
+            id: 'request_id',
+            method: 'stringRequest',
+            params: 'ping'
+        });
+        expect(await expectation).toMatchObject(
+            {
+                id: 'request_id',
+                error: {
+                    message:'Failed to handle request from: host extension'
+                }
+            }
+        );
+    });
 });
 
 function postWindowMsg(obj: any) {
     window?.postMessage(obj, '*');
+}
+
+function participantToString(participant: MessageParticipant): string {
+    if (participant.webviewId) {
+        return participant.webviewId;
+    } else if (participant.webviewType) {
+        return participant.webviewType;
+    } else {
+        return 'host extension';
+    }
 }

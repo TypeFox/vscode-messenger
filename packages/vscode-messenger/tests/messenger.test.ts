@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { isRequestMessage, NotificationType, RequestType } from 'vscode-messenger-common';
+import { isRequestMessage, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger } from '../src';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
@@ -265,6 +265,25 @@ describe('Simple test', () => {
                     webviewId: VIEW_TYPE_1 + '_0'
                 },
                 result: 'result:test'
+            }
+        );
+    });
+
+    test('Handle handler error', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+
+        messenger.onRequest(simpleRequest, (params: string, sender: MessageParticipant) => {
+            throw new Error(`Failed to handle request from view: ${sender.webviewId} of type: ${sender.webviewId}`);
+        });
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: {}, id: 'fake_req_id', params: 'test' });
+        expect(view1.messages[0]).toMatchObject(
+            {
+                id: 'fake_req_id',
+                error: {
+                    message:'Failed to handle request from view: test.view.type.1_0 of type: test.view.type.1_0'
+                }
             }
         );
     });
