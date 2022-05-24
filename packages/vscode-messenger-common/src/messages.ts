@@ -4,6 +4,10 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
+/**
+ * Identifies an endpoint able to send and receive messages. The host extension can
+ * be identified with an empty object `{}`.
+ */
 export interface MessageParticipant {
     /** Identifier of a specific webview instance. */
     webviewId?: string
@@ -14,8 +18,15 @@ export interface MessageParticipant {
 export interface Message {
     /** The receiver of this message. */
     receiver: MessageParticipant
-    /** The sender of this message. */
+    /**
+     * The sender of this message. Webviews can omit the sender so the property will be added
+     * by the host extension.
+     */
     sender?: MessageParticipant
+}
+
+export function isMessage(obj: unknown): obj is Message {
+    return typeof obj === 'object' && obj !== null && typeof (obj as Message).receiver === 'object';
 }
 
 export interface RequestMessage extends Message {
@@ -82,7 +93,7 @@ export type RequestType<P extends JsonAny, R> = { method: string };
  * Function for handling incoming requests.
  */
 export type RequestHandler<P, R> = (params: P, sender: MessageParticipant) => HandlerResult<R>;
-export type HandlerResult<R> = R | ResponseError | Promise<R> | Promise<ResponseError> | Promise<R | ResponseError>;
+export type HandlerResult<R> = R | Promise<R>;
 
 /**
  * Data structure for defining a notification type.
@@ -103,13 +114,4 @@ export interface MessengerAPI {
     onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void
     onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): void
-}
-
-export function createMessage<P extends JsonAny, R>(id: string, type: RequestType<P, R>, receiver: MessageParticipant, params: P): JsonAny {
-    return {
-        id: id,
-        method: type.method,
-        receiver: receiver as JsonMap, // TODO check this cast
-        params:  params
-    };
 }

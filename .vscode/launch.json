@@ -18,12 +18,14 @@
             "internalConsoleOptions": "neverOpen"
         },
         {
-            "name": "Jest: Webview test",
+            "name": "Jest: Run Selected File",
             "type": "node",
             "request": "launch",
             "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
             "args": [
-                "--config=${workspaceFolder}/packages/vscode-messenger-webview/jest.config.json",
+                "${fileBasename}",
+                "--config=${workspaceFolder}/jest.config.json",
+                "--verbose",
                 "-i",
                 "--no-cache",
             ],
