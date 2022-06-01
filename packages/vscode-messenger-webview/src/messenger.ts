@@ -28,25 +28,30 @@ export class Messenger implements MessengerAPI {
         this.options = { ...defaultOptions, ...options };
     }
 
-    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
+    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Messenger {
         this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
+        return this;
     }
 
-    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
+    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): Messenger {
         this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
+        return this;
     }
 
-    start(): Messenger {
+    start(): void {
         window.addEventListener('message', (event: { data: unknown }) => {
             if (isMessage(event.data)) {
                 this.processMessage(event.data)
                     .catch(err => this.log(String(err), 'error'));
             }
         });
-        return this;
     }
 
     protected async processMessage(msg: Message): Promise<void> {
+        if (msg.receiver.type === 'extension') {
+            // Ignore the message if it's not directed to us
+            return;
+        }
         if (isRequestMessage(msg)) {
             this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
             const handler = this.handlerRegistry.get(msg.method);
@@ -68,15 +73,23 @@ export class Messenger implements MessengerAPI {
                     this.vscode.postMessage(response);
                 }
             } else {
-                this.log(`Received request with unknown method: ${msg.method}`);
+                this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+                const response: ResponseMessage = {
+                    id: msg.id,
+                    receiver: msg.sender!,
+                    error: {
+                        message: `Unknown method: ${msg.method}`
+                    }
+                };
+                this.vscode.postMessage(response);
             }
         } else if (isNotificationMessage(msg)) {
             this.log(`View received Notification message: ${msg.method}`);
             const handler = this.handlerRegistry.get(msg.method);
             if (handler) {
                 handler(msg.params, msg.sender!);
-            } else {
-                this.log(`Received notification with unknown method: ${msg.method}`);
+            } else if (msg.receiver.type !== 'broadcast') {
+                this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
             }
         } else if (isResponseMessage(msg)) {
             this.log(`View received Response message: ${msg.id}`);
@@ -89,7 +102,7 @@ export class Messenger implements MessengerAPI {
                 }
                 this.requests.delete(msg.id);
             } else {
-                this.log(`Received response for untracked message id: ${msg.id} (participant: ${participantToString(msg.sender!)})`, 'warn');
+                this.log(`Received response for untracked message id: ${msg.id} (sender: ${participantToString(msg.sender!)})`, 'warn');
             }
         } else {
             this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
@@ -107,6 +120,10 @@ export class Messenger implements MessengerAPI {
     }
 
     sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+        if (receiver.type === 'broadcast') {
+            throw new Error('Only notification messages are allowed for broadcast.');
+        }
+
         const msgId = this.createMsgId();
         const result = new Promise<R>((resolve, reject) => {
             this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
@@ -171,11 +188,18 @@ export interface RequestData {
 }
 
 function participantToString(participant: MessageParticipant): string {
-    if (participant.webviewId) {
-        return participant.webviewId;
-    } else if (participant.webviewType) {
-        return participant.webviewType;
-    } else {
-        return 'host extension';
+    switch (participant.type) {
+        case 'extension':
+            return 'host extension';
+        case 'webview':
+            if (participant.webviewId) {
+                return participant.webviewId;
+            } else if (participant.webviewType) {
+                return participant.webviewType;
+            } else {
+                return 'unspecified webview';
+            }
+        case 'broadcast':
+            return 'broadcast';
     }
 }

@@ -1,12 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /******************************************************************************
  * Copyright 2022 TypeFox GmbH
  * This program and the accompanying materials are made available under the
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { isRequestMessage, isResponseMessage, JsonAny, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
+import { HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 import crypto from 'crypto';
 
@@ -20,17 +21,37 @@ Object.defineProperty(global.self, 'crypto', {
 const stringNotification: NotificationType<string> = { method: 'stringNotification' };
 const stringRequest: RequestType<string, string> = { method: 'stringRequest' };
 
-describe('Simple test', () => {
+describe('Webview Messenger', () => {
     let vsCodeApi: VsCodeApi & { messages: any[], onReceivedMessage: (message: any) => void };
+    let messageListeners: Array<(event: { data: unknown }) => void> = [];
+
+    function postWindowMsg(obj: any) {
+        if (messageListeners.length === 0) {
+            throw new Error('Messenger is not started.');
+        } else if (messageListeners.length > 1) {
+            console.warn('More than one Messenger is active.');
+        }
+        for (const listener of messageListeners) {
+            listener({ data: obj });
+        }
+    }
 
     beforeAll(() => {
+        const addEventListener = window.addEventListener;
+        window.addEventListener = ((type: string, listener: (event: any) => void, options: any) => {
+            if (type === 'message') {
+                messageListeners.push(listener);
+            } else {
+                addEventListener(type, listener, options);
+            }
+        }) as any;
         vsCodeApi = {
             postMessage: (message: Message) => {
                 vsCodeApi.messages.push(message);
                 if (isRequestMessage(message)) {
                     postWindowMsg({
-                        sender: {},
-                        receiver: { webviewId: 'test-view' },
+                        sender: HOST_EXTENSION,
+                        receiver: { type: 'webview', webviewId: 'test-view' },
                         id: message.id,
                         result: 'result:' + message.params
                     });
@@ -48,17 +69,19 @@ describe('Simple test', () => {
     afterEach(() => {
         vsCodeApi.messages = [];
         vsCodeApi.onReceivedMessage = (message: any) => { return; };
+        messageListeners = [];
     });
 
     test('Send request to extension', async () => {
-        const messenger = new Messenger(vsCodeApi).start();
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
 
-        const response = await messenger.sendRequest(stringRequest, {}, 'ping');
+        const response = await messenger.sendRequest(stringRequest, HOST_EXTENSION, 'ping');
 
         expect(vsCodeApi.messages[0]).toMatchObject(
             {
                 method: 'stringRequest',
-                receiver: {},
+                receiver: HOST_EXTENSION,
                 params: 'ping'
             }
         );
@@ -66,72 +89,88 @@ describe('Simple test', () => {
     });
 
     test('Send notification to extension', () => {
-        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'ping');
+        new Messenger(vsCodeApi).sendNotification(stringNotification, HOST_EXTENSION, 'ping');
 
         const message = vsCodeApi.messages[0] as unknown as any;
         delete message.id;
         expect(message).toMatchObject(
             {
                 method: 'stringNotification',
-                receiver: {},
+                receiver: HOST_EXTENSION,
                 params: 'ping'
             }
         );
     });
 
     test('Handle request from an extension', async () => {
-        new Messenger(vsCodeApi).start().onRequest(stringRequest, (r: string) => {
+        new Messenger(vsCodeApi).onRequest(stringRequest, (r: string) => {
             return 'handled:' + r;
-        });
-        const expectation = new Promise<JsonAny | undefined>((resolve, reject) => {
-            vsCodeApi.onReceivedMessage = (msg) => {
-                if (isResponseMessage(msg)) {
-                    resolve(msg.result);
-                } else {
-                    reject('not a response msg');
-                }
-            };
+        }).start();
+        const expectation = new Promise<unknown>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = resolve;
         });
 
         // simulate extension request
         postWindowMsg({
-            sender: {},
-            receiver: { webviewId: 'test-view' },
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
             id: 'request_id',
             method: 'stringRequest',
             params: 'ping'
         });
-        expect(await expectation).toBe('handled:ping');
+        expect(await expectation).toMatchObject({
+            id: 'request_id',
+            result: 'handled:ping'
+        });
     });
 
-    test('Async Handle request from an extension', async () => {
-        new Messenger(vsCodeApi).start().onRequest(stringRequest, async (r: string) => {
+    test('Handle request with async handler', async () => {
+        new Messenger(vsCodeApi).onRequest(stringRequest, async (r: string) => {
             const promise = new Promise<string>((resolve, reject) => {
                 setTimeout(() => {
                     resolve(r);
                 }, 50);
             });
             return 'handled:' +  await promise;
-        });
-        const expectation = new Promise<JsonAny | undefined>((resolve, reject) => {
-            vsCodeApi.onReceivedMessage = (msg) => {
-                if (isResponseMessage(msg)) {
-                    resolve(msg.result);
-                } else {
-                    reject('not a response msg');
-                }
-            };
+        }).start();
+        const expectation = new Promise<unknown>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = resolve;
         });
 
         // simulate extension request
         postWindowMsg({
-            sender: {},
-            receiver: { webviewId: 'test-view' },
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
             id: 'request_id',
             method: 'stringRequest',
             params: 'ping'
         });
-        expect(await expectation).toBe('handled:ping');
+        expect(await expectation).toMatchObject({
+            id: 'request_id',
+            result: 'handled:ping'
+        });
+    });
+
+    test('Handle request with no handler', async () => {
+        new Messenger(vsCodeApi).start();
+        const expectation = new Promise<unknown>((resolve, reject) => {
+            vsCodeApi.onReceivedMessage = resolve;
+        });
+
+        // simulate extension request
+        postWindowMsg({
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
+            id: 'request_id',
+            method: 'stringRequest',
+            params: 'ping'
+        });
+        expect(await expectation).toMatchObject({
+            id: 'request_id',
+            error: {
+                message: 'Unknown method: stringRequest'
+            }
+        });
     });
 
     test('Handle notification from an extension', async () => {
@@ -140,15 +179,15 @@ describe('Simple test', () => {
             resolver = resolve;
         });
 
-        new Messenger(vsCodeApi).start().onNotification(stringNotification, (note: string) => {
+        new Messenger(vsCodeApi).onNotification(stringNotification, (note: string) => {
             const result = 'handled:' + note;
             resolver(result);
             return;
-        });
+        }).start();
 
         postWindowMsg({
-            sender: {},
-            receiver: { webviewId: 'test-view' },
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
             method: 'stringNotification',
             params: 'pong'
         });
@@ -156,8 +195,12 @@ describe('Simple test', () => {
     });
 
     test('Check unique msg id', () => {
-        new Messenger(vsCodeApi).sendRequest(stringNotification, {}, 'ping1');
-        new Messenger(vsCodeApi).sendRequest(stringNotification, {}, 'ping2');
+        const messenger1 = new Messenger(vsCodeApi);
+        messenger1.start();
+        const messenger2 = new Messenger(vsCodeApi);
+        messenger2.start();
+        messenger1.sendRequest(stringNotification, HOST_EXTENSION, 'ping1');
+        messenger2.sendRequest(stringNotification, HOST_EXTENSION, 'ping2');
 
         const message1 = vsCodeApi.messages[0] as unknown as any;
         const message2 = vsCodeApi.messages[1] as unknown as any;
@@ -169,54 +212,32 @@ describe('Simple test', () => {
     });
 
     test('Check no msg id for notifications', () => {
-        new Messenger(vsCodeApi).sendNotification(stringNotification, {}, 'note');
+        new Messenger(vsCodeApi).sendNotification(stringNotification, HOST_EXTENSION, 'note');
         const message = vsCodeApi.messages[0] as unknown as any;
         expect(message.id).toBeUndefined();
     });
 
     test('Handle request handler error', async () => {
-        new Messenger(vsCodeApi).start().onRequest(stringRequest, (r: string, sender: MessageParticipant) => {
-            throw new Error(`Failed to handle request from: ${participantToString(sender)}`);
-        });
+        new Messenger(vsCodeApi).onRequest(stringRequest, (r: string, sender: MessageParticipant) => {
+            throw new Error(`Failed to handle request from: ${JSON.stringify(sender)}`);
+        }).start();
         const expectation = new Promise<unknown>((resolve, reject) => {
-            vsCodeApi.onReceivedMessage = (msg) => {
-                if (isResponseMessage(msg)) {
-                    resolve(msg);
-                } else {
-                    reject('not a response msg');
-                }
-            };
+            vsCodeApi.onReceivedMessage = resolve;
         });
 
         // simulate extension request
         postWindowMsg({
-            sender: {},
-            receiver: { webviewId: 'test-view' },
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
             id: 'request_id',
             method: 'stringRequest',
             params: 'ping'
         });
-        expect(await expectation).toMatchObject(
-            {
-                id: 'request_id',
-                error: {
-                    message:'Failed to handle request from: host extension'
-                }
+        expect(await expectation).toMatchObject({
+            id: 'request_id',
+            error: {
+                message: 'Failed to handle request from: {"type":"extension"}'
             }
-        );
+        });
     });
 });
-
-function postWindowMsg(obj: any) {
-    window?.postMessage(obj, '*');
-}
-
-function participantToString(participant: MessageParticipant): string {
-    if (participant.webviewId) {
-        return participant.webviewId;
-    } else if (participant.webviewType) {
-        return participant.webviewType;
-    } else {
-        return 'host extension';
-    }
-}

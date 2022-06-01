@@ -5,15 +5,41 @@
  ******************************************************************************/
 
 /**
- * Identifies an endpoint able to send and receive messages. The host extension can
- * be identified with an empty object `{}`.
+ * Identifies an endpoint able to send and receive messages.
  */
-export interface MessageParticipant {
+export type MessageParticipant = ExtensionMessageParticipant | WebviewMessageParticipant | BroadcastMessageParticipant
+
+/**
+ * Specifies the host extension (if `extensionId` is undefined) or another extension.
+ */
+export interface ExtensionMessageParticipant {
+    type: 'extension'
+    /** Identifier in the form `publisher.name`. _This property is not supported yet._ */
+    extensionId?: string
+}
+
+export const HOST_EXTENSION: Readonly<ExtensionMessageParticipant> = { type: 'extension' };
+
+/**
+ * A webview must be identified either with an ID (`webviewId`) or a type (`webviewType`).
+ */
+export interface WebviewMessageParticipant {
+    type: 'webview'
     /** Identifier of a specific webview instance. */
     webviewId?: string
     /** Webview panel type or webview view type. */
     webviewType?: string
 }
+
+/**
+ * This participant type is only valid for notifications and distributes a message
+ * to all known participants.
+ */
+export interface BroadcastMessageParticipant {
+    type: 'broadcast'
+}
+
+export const BROADCAST: Readonly<BroadcastMessageParticipant> = { type: 'broadcast' };
 
 export interface Message {
     /** The receiver of this message. */

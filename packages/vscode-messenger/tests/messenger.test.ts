@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { isRequestMessage, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+import { BROADCAST, HOST_EXTENSION, isRequestMessage, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger } from '../src';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
@@ -41,7 +41,7 @@ function createWebview(viewType: string) {
             throw new Error('Function not implemented.');
         },
         messages: [],
-        responseReceiver: {}
+        responseReceiver: HOST_EXTENSION
     };
     return view;
 }
@@ -67,13 +67,14 @@ describe('Simple test', () => {
     test('Send notification to a view by type', () => {
         const messenger = new Messenger({ debugLog: true });
         messenger.registerWebviewView(view1);
-        messenger.sendNotification(simpleNotification, { webviewType: VIEW_TYPE_1 }, 'ping');
+        messenger.sendNotification(simpleNotification, { type: 'webview', webviewType: VIEW_TYPE_1 }, 'ping');
 
         expect(view1.messages[0].id).toBeUndefined();
         expect(view1.messages[0]).toMatchObject(
             {
                 method: 'notification',
                 receiver: {
+                    type: 'webview',
                     webviewType: 'test.view.type.1'
                 },
                 params: 'ping'
@@ -84,13 +85,14 @@ describe('Simple test', () => {
     test('Send notification to a view by id', () => {
         const messenger = new Messenger({ debugLog: true });
         messenger.registerWebviewView(view1);
-        messenger.sendNotification(simpleNotification, { webviewId: VIEW_TYPE_1 + '_0' }, 'ping');
+        messenger.sendNotification(simpleNotification, { type: 'webview', webviewId: VIEW_TYPE_1 + '_0' }, 'ping');
 
         expect(view1.messages[0].id).toBeUndefined();
         expect(view1.messages[0]).toMatchObject(
             {
                 method: 'notification',
                 receiver: {
+                    type: 'webview',
                     webviewId: VIEW_TYPE_1 + '_0'
                 },
                 params: 'ping'
@@ -102,7 +104,7 @@ describe('Simple test', () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
 
-        const response = await messenger.sendRequest(simpleRequest, { webviewType: VIEW_TYPE_1 }, 'ping');
+        const response = await messenger.sendRequest(simpleRequest, { type: 'webview', webviewType: VIEW_TYPE_1 }, 'ping');
         expect(response).toBe('result:ping');
     });
 
@@ -110,7 +112,7 @@ describe('Simple test', () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
 
-        const response = await messenger.sendRequest(simpleRequest, { webviewId: VIEW_TYPE_1 + '_0' }, 'ping');
+        const response = await messenger.sendRequest(simpleRequest, { type: 'webview', webviewId: VIEW_TYPE_1 + '_0' }, 'ping');
         expect(response).toBe('result:ping');
     });
 
@@ -122,7 +124,7 @@ describe('Simple test', () => {
             handled = 'handled:' + params;
         });
         // Simulate webview notification
-        view1.messageCallback({ ...simpleNotification, receiver: {}, params: 'test' });
+        view1.messageCallback({ ...simpleNotification, receiver: HOST_EXTENSION, params: 'test' });
         expect(handled).toBe('handled:test');
     });
 
@@ -135,12 +137,12 @@ describe('Simple test', () => {
             return 'handled:' + params;
         });
         // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: {}, id: 'fake_req_id', params: 'test' });
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(handled).toBe(true);
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
     });
 
-    test('Handle request async handler', async () => {
+    test('Handle request with async handler', async () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         let handled = false;
@@ -151,10 +153,18 @@ describe('Simple test', () => {
             return 'handled:' + params;
         });
         // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: {}, id: 'fake_req_id', params: 'test' });
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         await delayElapsed;
         expect(handled).toBe(true);
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', result: 'handled:test' });
+    });
+
+    test('Handle request with no handler', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+        expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Unknown method: request' } });
     });
 
     test('Do not handle events for hidden view', async () => {
@@ -163,10 +173,10 @@ describe('Simple test', () => {
         messenger.registerWebviewView(view1);
 
         // Ignore notifications
-        messenger.sendNotification(simpleNotification, { webviewType: VIEW_TYPE_1 }, 'note');
+        messenger.sendNotification(simpleNotification, { type: 'webview', webviewType: VIEW_TYPE_1 }, 'note');
         expect(view1.messages.length).toBe(0);
 
-        const response = messenger.sendRequest(simpleRequest, { webviewType: VIEW_TYPE_1 }, 'ping');
+        const response = messenger.sendRequest(simpleRequest, { type: 'webview', webviewType: VIEW_TYPE_1 }, 'ping');
         // Reject requests
         await expect(response).rejects.toEqual(new Error('Skipped request for hidden view: test.view.type.1'));
     });
@@ -176,13 +186,14 @@ describe('Simple test', () => {
         messenger.registerWebviewView(view1);
         messenger.registerWebviewView(view2);
         // Simulate webview notification
-        view1.messageCallback({ ...simpleNotification, receiver: { webviewType: VIEW_TYPE_2 }, params: 'ping' });
+        view1.messageCallback({ ...simpleNotification, receiver: { type: 'webview', webviewType: VIEW_TYPE_2 }, params: 'ping' });
 
         expect(view2.messages[0].id).toBeUndefined();
         expect(view2.messages[0]).toMatchObject(
             {
                 method: 'notification',
                 receiver: {
+                    type: 'webview',
                     webviewType: 'test.view.type.2'
                 },
                 params: 'ping'
@@ -195,13 +206,14 @@ describe('Simple test', () => {
         messenger.registerWebviewView(view1);
         messenger.registerWebviewView(view2);
         // Simulate webview notification
-        view1.messageCallback({ ...simpleNotification, receiver: { webviewId: VIEW_TYPE_2 + '_1' }, params: 'ping' });
+        view1.messageCallback({ ...simpleNotification, receiver: { type: 'webview', webviewId: VIEW_TYPE_2 + '_1' }, params: 'ping' });
 
         expect(view2.messages[0].id).toBeUndefined();
         expect(view2.messages[0]).toMatchObject(
             {
                 method: 'notification',
                 receiver: {
+                    type: 'webview',
                     webviewId: VIEW_TYPE_2 + '_1'
                 },
                 params: 'ping'
@@ -213,15 +225,16 @@ describe('Simple test', () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         messenger.registerWebviewView(view2);
-        view2.responseReceiver = { webviewType: VIEW_TYPE_1 };
+        view2.responseReceiver = { type: 'webview', webviewType: VIEW_TYPE_1 };
         // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: { webviewType: VIEW_TYPE_2 }, id: 'fake_req_id', params: 'test' });
+        await view1.messageCallback({ ...simpleRequest, receiver: { type: 'webview', webviewType: VIEW_TYPE_2 }, id: 'fake_req_id', params: 'test' });
 
         expect(view2.messages[0]).toMatchObject(
             {
                 id: 'fake_req_id',
                 method: 'request',
                 receiver: {
+                    type: 'webview',
                     webviewType: 'test.view.type.2'
                 },
                 params: 'test'
@@ -232,6 +245,7 @@ describe('Simple test', () => {
             {
                 id: 'fake_req_id',
                 receiver: {
+                    type: 'webview',
                     webviewType: 'test.view.type.1'
                 },
                 result: 'result:test'
@@ -243,15 +257,16 @@ describe('Simple test', () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         messenger.registerWebviewView(view2);
-        view2.responseReceiver = { webviewId: VIEW_TYPE_1 + '_0' };
+        view2.responseReceiver = { type: 'webview', webviewId: VIEW_TYPE_1 + '_0' };
         // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: { webviewId: VIEW_TYPE_2 + '_1' }, id: 'fake_req_id', params: 'test' });
+        await view1.messageCallback({ ...simpleRequest, receiver: { type: 'webview', webviewId: VIEW_TYPE_2 + '_1' }, id: 'fake_req_id', params: 'test' });
 
         expect(view2.messages[0]).toMatchObject(
             {
                 id: 'fake_req_id',
                 method: 'request',
                 receiver: {
+                    type: 'webview',
                     webviewId: VIEW_TYPE_2 + '_1'
                 },
                 params: 'test'
@@ -262,6 +277,7 @@ describe('Simple test', () => {
             {
                 id: 'fake_req_id',
                 receiver: {
+                    type: 'webview',
                     webviewId: VIEW_TYPE_1 + '_0'
                 },
                 result: 'result:test'
@@ -274,16 +290,66 @@ describe('Simple test', () => {
         messenger.registerWebviewView(view1);
 
         messenger.onRequest(simpleRequest, (params: string, sender: MessageParticipant) => {
-            throw new Error(`Failed to handle request from view: ${sender.webviewId} of type: ${sender.webviewId}`);
+            throw new Error('Failed to handle request');
         });
         // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: {}, id: 'fake_req_id', params: 'test' });
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject(
             {
                 id: 'fake_req_id',
                 error: {
-                    message:'Failed to handle request from view: test.view.type.1_0 of type: test.view.type.1_0'
+                    message:'Failed to handle request'
                 }
+            }
+        );
+    });
+
+    test('Broadcast notification to all webviews', () => {
+        const messenger = new Messenger({ debugLog: true });
+        messenger.registerWebviewView(view1);
+        messenger.registerWebviewView(view2);
+        messenger.sendNotification(simpleNotification, BROADCAST, 'ping');
+
+        expect(view1.messages[0]).toMatchObject(
+            {
+                method: 'notification',
+                receiver: {
+                    type: 'broadcast'
+                },
+                params: 'ping'
+            }
+        );
+        expect(view2.messages[0]).toMatchObject(
+            {
+                method: 'notification',
+                receiver: {
+                    type: 'broadcast'
+                },
+                params: 'ping'
+            }
+        );
+    });
+
+    test('Broadcast from one webview to extension and other webview', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.registerWebviewView(view2);
+
+        let handled = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled = 'handled:' + params;
+        });
+        // Simulate webview notification
+        view1.messageCallback({ ...simpleNotification, receiver: BROADCAST, params: 'ping' });
+
+        expect(handled).toBe('handled:ping');
+        expect(view2.messages[0]).toMatchObject(
+            {
+                method: 'notification',
+                receiver: {
+                    type: 'broadcast'
+                },
+                params: 'ping'
             }
         );
     });
