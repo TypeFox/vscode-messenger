@@ -6,9 +6,10 @@
 
 import * as vscode from 'vscode';
 import {
+    HOST_EXTENSION,
     isMessage, isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, Message, MessageParticipant,
     MessengerAPI, NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage,
-    RequestType, ResponseError, ResponseMessage
+    RequestType, ResponseError, ResponseMessage, WebviewMessageParticipant
 } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
@@ -73,6 +74,7 @@ export class Messenger implements MessengerAPI {
             if (isMessage(msg)) {
                 if (!msg.sender) {
                     msg.sender = {
+                        type: 'webview',
                         webviewId: viewId,
                         webviewType: view.viewType
                     };
@@ -88,38 +90,55 @@ export class Messenger implements MessengerAPI {
      * a locally registered message handler.
      */
     protected async processMessage(msg: Message, responseCallback: (res: Message) => Thenable<boolean>): Promise<void> {
-        if (msg.receiver.webviewId) {
-            // The message is directed to a specific webview
-            const receiverView = this.viewRegistry.get(msg.receiver.webviewId);
-            if (receiverView) {
-                const result = await receiverView.webview.postMessage(msg);
-                if (!result) {
-                    this.log(`Failed to forward message to view: ${msg.receiver.webviewId}`, 'error');
+        if (msg.receiver.type === 'extension') {
+            // The message is directed to this host extension
+            if (isRequestMessage(msg)) {
+                await this.processRequestMessage(msg, responseCallback);
+            } else if (isNotificationMessage(msg)) {
+                await this.processNotificationMessage(msg);
+            } else if (isResponseMessage(msg)) {
+                await this.processResponseMessage(msg);
+            } else {
+                this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
+            }
+        } else if (msg.receiver.type === 'webview') {
+            if (msg.receiver.webviewId) {
+                // The message is directed to a specific webview
+                const receiverView = this.viewRegistry.get(msg.receiver.webviewId);
+                if (receiverView) {
+                    const result = await receiverView.webview.postMessage(msg);
+                    if (!result) {
+                        this.log(`Failed to forward message to view: ${msg.receiver.webviewId}`, 'error');
+                    }
+                } else {
+                    this.log(`No webview with id ${msg.receiver.webviewId} is registered.`, 'warn');
+                }
+            } else if (msg.receiver.webviewType) {
+                // The message is directed to all webviews of a specific type
+                const receiverViews = this.viewTypeRegistry.get(msg.receiver.webviewType);
+                if (receiverViews) {
+                    receiverViews.forEach(async view => {
+                        const result = await view.webview.postMessage(msg);
+                        if (!result) {
+                            this.log(`Failed to forward message to view: ${(msg.receiver as WebviewMessageParticipant).webviewType}`, 'error');
+                        }
+                    });
+                } else {
+                    this.log(`No webview with type ${msg.receiver.webviewType} is registered.`, 'warn');
                 }
             } else {
-                this.log(`No webview with id ${msg.receiver.webviewId} is registered.`, 'warn');
+                this.log(`A receiver of type 'webview' must specify a 'webviewId' or a 'webviewType': ${JSON.stringify(msg)}`, 'error');
             }
-        } else if (msg.receiver.webviewType) {
-            // The message is directed to all webviews of a specific type
-            const receiverViews = this.viewTypeRegistry.get(msg.receiver.webviewType);
-            if (receiverViews) {
-                receiverViews.forEach(async view => {
-                    const result = await view.webview.postMessage(msg);
-                    if (!result) {
-                        this.log(`Failed to forward message to view: ${msg.receiver.webviewType}`, 'error');
-                    }
-                });
+        } else if (msg.receiver.type === 'broadcast') {
+            if (isNotificationMessage(msg)) {
+                // The notification is broadcasted to all webviews and to this extension
+                for (const view of this.viewRegistry.values()) {
+                    view.webview.postMessage(msg);
+                }
+                await this.processNotificationMessage(msg);
             } else {
-                this.log(`No webview with type ${msg.receiver.webviewType} is registered.`, 'warn');
+                this.log(`Only notification messages are allowed for broadcast: ${JSON.stringify(msg)}`, 'error');
             }
-        } else if (isRequestMessage(msg)) {
-            await this.processRequestMessage(msg, responseCallback);
-        } else if (isNotificationMessage(msg)) {
-            await this.processNotificationMessage(msg);
-        } else if (isResponseMessage(msg)) {
-            await this.processResponseMessage(msg);
-        } else {
-            this.log(`Invalid message: ${msg}`, 'error');
         }
     }
 
@@ -130,16 +149,24 @@ export class Messenger implements MessengerAPI {
         this.log(`Host received Request message: ${msg.method} (id ${msg.id})`);
         const handler = this.handlerRegistry.get(msg.method);
         if (!handler) {
-            this.log(`Received request with unknown method: ${msg.method}`);
+            this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+            const response: ResponseMessage = {
+                id: msg.id,
+                sender: HOST_EXTENSION,
+                receiver: msg.sender!,
+                error: {
+                    message: `Unknown method: ${msg.method}`
+                }
+            };
+            await responseCallback(response);
             return;
         }
 
-        const sender: MessageParticipant = {}; // Specifies the host extension
         try {
             const result = await handler(msg.params, msg.sender!);
             const response: ResponseMessage = {
                 id: msg.id,
-                sender,
+                sender: HOST_EXTENSION,
                 receiver: msg.sender!,
                 result: result as JsonAny
             };
@@ -150,7 +177,7 @@ export class Messenger implements MessengerAPI {
         } catch (error) {
             const response: ResponseMessage = {
                 id: msg.id,
-                sender,
+                sender: HOST_EXTENSION,
                 receiver: msg.sender!,
                 error: this.createResponseError(error)
             };
@@ -175,12 +202,12 @@ export class Messenger implements MessengerAPI {
      * Process an incoming notification message with a registered handler.
      */
     protected async processNotificationMessage(msg: NotificationMessage): Promise<void> {
-        this.log(`Host received Notification message: ${msg.method} `);
+        this.log(`Host received Notification message: ${msg.method}`);
         const handler = this.handlerRegistry.get(msg.method);
         if (handler) {
             await handler(msg.params, msg.sender!);
-        } else {
-            this.log(`Received notification with unknown method: ${msg.method}`);
+        } else if (msg.receiver.type !== 'broadcast') {
+            this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
         }
     }
 
@@ -217,25 +244,32 @@ export class Messenger implements MessengerAPI {
     }
 
     async sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
-        if (receiver.webviewId) {
-            const receiverView = this.viewRegistry.get(receiver.webviewId);
-            if (receiverView) {
-                return this.sendRequestToWebview(type, receiver, params, receiverView);
+        if (receiver.type === 'extension') {
+            throw new Error('Requests to other extensions are not supported yet.');
+        } else if (receiver.type === 'webview') {
+            if (receiver.webviewId) {
+                const receiverView = this.viewRegistry.get(receiver.webviewId);
+                if (receiverView) {
+                    return this.sendRequestToWebview(type, receiver, params, receiverView);
+                } else {
+                    return Promise.reject(new Error(`No webview with id ${receiver.webviewId} is registered.`));
+                }
+            } else if (receiver.webviewType) {
+                const receiverViews = this.viewTypeRegistry.get(receiver.webviewType);
+                if (receiverViews) {
+                    // If there are multiple views, we make a race: the first view to return a result wins
+                    const results = Array.from(receiverViews).map(view => this.sendRequestToWebview(type, receiver, params, view));
+                    return Promise.race(results);
+                } else {
+                    return Promise.reject(new Error(`No webview with type ${receiver.webviewType} is registered.`));
+                }
             } else {
-                return Promise.reject(new Error(`No webview with id ${receiver.webviewId} is registered.`));
+                throw new Error('Unspecified webview receiver: neither webviewId nor webviewType was set.');
             }
-        } else if (receiver.webviewType) {
-            const receiverViews = this.viewTypeRegistry.get(receiver.webviewType);
-            if (receiverViews) {
-                // If there are multiple views, we make a race: the first view to return a result wins
-                const results = Array.from(receiverViews).map(view => this.sendRequestToWebview(type, receiver, params, view));
-                return Promise.race(results);
-            } else {
-                return Promise.reject(new Error(`No webview with type ${receiver.webviewType} is registered.`));
-            }
-        } else {
-            throw new Error('A request needs a receiver; neither webviewId nor webviewType was set.');
+        } else if (receiver.type === 'broadcast') {
+            throw new Error('Only notification messages are allowed for broadcast.');
         }
+        throw new Error(`Invalid receiver: ${JSON.stringify(receiver)}`);
     }
 
     protected async sendRequestToWebview<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<R> {
@@ -244,7 +278,6 @@ export class Messenger implements MessengerAPI {
             return Promise.reject(new Error(`Skipped request for hidden view: ${participantToString(receiver)}`));
         }
 
-        const sender = {}; // Specifies the host extension
         const msgId = this.createMsgId();
         const result = new Promise<R>((resolve, reject) => {
             this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
@@ -252,7 +285,7 @@ export class Messenger implements MessengerAPI {
         const message: RequestMessage = {
             id: msgId,
             method: type.method,
-            sender,
+            sender: HOST_EXTENSION,
             receiver,
             params
         };
@@ -266,26 +299,35 @@ export class Messenger implements MessengerAPI {
     }
 
     sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
-        if (receiver.webviewId) {
-            const receiverView = this.viewRegistry.get(receiver.webviewId);
-            if (receiverView) {
-                this.sendNotificationToWebview(type, receiver, params, receiverView)
-                    .catch(err => this.log(String(err), 'error'));
-            } else {
-                this.log(`No webview with id ${receiver.webviewId} is registered.`, 'warn');
-            }
-        } else if (receiver.webviewType) {
-            const receiverViews = this.viewTypeRegistry.get(receiver.webviewType);
-            if (receiverViews) {
-                receiverViews.forEach(view => {
-                    this.sendNotificationToWebview(type, receiver, params, view)
+        if (receiver.type === 'extension') {
+            throw new Error('Notifications to other extensions are not supported yet.');
+        } else if (receiver.type === 'webview') {
+            if (receiver.webviewId) {
+                const receiverView = this.viewRegistry.get(receiver.webviewId);
+                if (receiverView) {
+                    this.sendNotificationToWebview(type, receiver, params, receiverView)
                         .catch(err => this.log(String(err), 'error'));
-                });
+                } else {
+                    this.log(`No webview with id ${receiver.webviewId} is registered.`, 'warn');
+                }
+            } else if (receiver.webviewType) {
+                const receiverViews = this.viewTypeRegistry.get(receiver.webviewType);
+                if (receiverViews) {
+                    receiverViews.forEach(view => {
+                        this.sendNotificationToWebview(type, receiver, params, view)
+                            .catch(err => this.log(String(err), 'error'));
+                    });
+                } else {
+                    this.log(`No webview with type ${receiver.webviewType} is registered.`, 'warn');
+                }
             } else {
-                this.log(`No webview with type ${receiver.webviewType} is registered.`, 'warn');
+                throw new Error('Unspecified webview receiver: neither webviewId nor webviewType was set.');
             }
-        } else {
-            throw new Error('A notification needs a receiver; neither webviewId nor webviewType was set.');
+        } else if (receiver.type === 'broadcast') {
+            for (const view of this.viewRegistry.values()) {
+                this.sendNotificationToWebview(type, receiver, params, view)
+                    .catch(err => this.log(String(err), 'error'));
+            }
         }
     }
 
@@ -297,7 +339,7 @@ export class Messenger implements MessengerAPI {
 
         const message: NotificationMessage = {
             method: type.method,
-            sender: {}, // Specifies the host extension
+            sender: HOST_EXTENSION,
             receiver,
             params
         };
@@ -362,11 +404,18 @@ class IdProvider {
 }
 
 function participantToString(participant: MessageParticipant): string {
-    if (participant.webviewId) {
-        return participant.webviewId;
-    } else if (participant.webviewType) {
-        return participant.webviewType;
-    } else {
-        return 'host extension';
+    switch (participant.type) {
+        case 'extension':
+            return 'host extension';
+        case 'webview':
+            if (participant.webviewId) {
+                return participant.webviewId;
+            } else if (participant.webviewType) {
+                return participant.webviewType;
+            } else {
+                return 'unspecified webview';
+            }
+        case 'broadcast':
+            return 'broadcast';
     }
 }
