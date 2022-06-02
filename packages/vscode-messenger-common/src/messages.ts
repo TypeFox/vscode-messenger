@@ -33,7 +33,7 @@ export interface WebviewMessageParticipant {
 
 /**
  * This participant type is only valid for notifications and distributes a message
- * to all known participants.
+ * to all participants that have registered for it.
  */
 export interface BroadcastMessageParticipant {
     type: 'broadcast'

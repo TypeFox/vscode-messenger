@@ -18,9 +18,7 @@ export class Messenger implements MessengerAPI {
 
     protected readonly viewTypeRegistry: Map<string, Set<ViewContainer>> = new Map();
 
-    // TODO use BiMap?
-    protected readonly viewRegistry: Map<string, ViewContainer> = new Map();
-    protected readonly idRegistry: Map<ViewContainer, string> = new Map();
+    protected readonly viewRegistry: Map<string, ViewData> = new Map();
 
     protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
 
@@ -36,27 +34,15 @@ export class Messenger implements MessengerAPI {
         this.options = { ...defaultOptions, ...options };
     }
 
-    registerWebviewPanel(panel: vscode.WebviewPanel): void {
-        this.registerViewContainer(panel);
+    registerWebviewPanel(panel: vscode.WebviewPanel, options: ViewOptions = {}): void {
+        this.registerViewContainer(panel, options);
     }
 
-    registerWebviewView(view: vscode.WebviewView): void {
-        this.registerViewContainer(view);
+    registerWebviewView(view: vscode.WebviewView, options: ViewOptions = {}): void {
+        this.registerViewContainer(view, options);
     }
 
-    protected registerViewContainer(view: ViewContainer): void {
-        view.onDidDispose(() => {
-            const storedId = this.idRegistry.get(view);
-            if (storedId) {
-                this.viewRegistry.delete(storedId);
-                this.idRegistry.delete(view);
-            }
-            const removed = this.viewTypeRegistry.get(view.viewType)?.delete(view);
-            if (!removed) {
-                this.log(`Attempt to remove non-existing registry entry for View: ${view.title} (type ${view.viewType})`, 'warn');
-            }
-        });
-
+    protected registerViewContainer(view: ViewContainer, options: ViewOptions): void {
         // Register typed view
         const viewTypeEntry = this.viewTypeRegistry.get(view.viewType);
         if (viewTypeEntry) {
@@ -66,16 +52,27 @@ export class Messenger implements MessengerAPI {
         }
 
         // Add viewId mapping
-        const viewId: string = this.idProvider.getWebviewId(view);
-        this.viewRegistry.set(viewId, view);
-        this.idRegistry.set(view, viewId);
+        const viewEntry = {
+            id: this.idProvider.getWebviewId(view),
+            container: view,
+            options
+        };
+        this.viewRegistry.set(viewEntry.id, viewEntry);
+
+        view.onDidDispose(() => {
+            this.viewRegistry.delete(viewEntry.id);
+            const removed = this.viewTypeRegistry.get(view.viewType)?.delete(view);
+            if (!removed) {
+                this.log(`Attempt to remove non-existing registry entry for View: ${view.title} (type ${view.viewType})`, 'warn');
+            }
+        });
 
         view.webview.onDidReceiveMessage(async (msg: unknown) => {
             if (isMessage(msg)) {
                 if (!msg.sender) {
                     msg.sender = {
                         type: 'webview',
-                        webviewId: viewId,
+                        webviewId: viewEntry.id,
                         webviewType: view.viewType
                     };
                 }
@@ -106,7 +103,7 @@ export class Messenger implements MessengerAPI {
                 // The message is directed to a specific webview
                 const receiverView = this.viewRegistry.get(msg.receiver.webviewId);
                 if (receiverView) {
-                    const result = await receiverView.webview.postMessage(msg);
+                    const result = await receiverView.container.webview.postMessage(msg);
                     if (!result) {
                         this.log(`Failed to forward message to view: ${msg.receiver.webviewId}`, 'error');
                     }
@@ -131,9 +128,11 @@ export class Messenger implements MessengerAPI {
             }
         } else if (msg.receiver.type === 'broadcast') {
             if (isNotificationMessage(msg)) {
-                // The notification is broadcasted to all webviews and to this extension
+                // The notification is broadcasted to all enabled webviews and to this extension
                 for (const view of this.viewRegistry.values()) {
-                    view.webview.postMessage(msg);
+                    if (view.options.broadcastMethods && view.options.broadcastMethods.indexOf(msg.method) >= 0) {
+                        view.container.webview.postMessage(msg);
+                    }
                 }
                 await this.processNotificationMessage(msg);
             } else {
@@ -250,7 +249,7 @@ export class Messenger implements MessengerAPI {
             if (receiver.webviewId) {
                 const receiverView = this.viewRegistry.get(receiver.webviewId);
                 if (receiverView) {
-                    return this.sendRequestToWebview(type, receiver, params, receiverView);
+                    return this.sendRequestToWebview(type, receiver, params, receiverView.container);
                 } else {
                     return Promise.reject(new Error(`No webview with id ${receiver.webviewId} is registered.`));
                 }
@@ -305,7 +304,7 @@ export class Messenger implements MessengerAPI {
             if (receiver.webviewId) {
                 const receiverView = this.viewRegistry.get(receiver.webviewId);
                 if (receiverView) {
-                    this.sendNotificationToWebview(type, receiver, params, receiverView)
+                    this.sendNotificationToWebview(type, receiver, params, receiverView.container)
                         .catch(err => this.log(String(err), 'error'));
                 } else {
                     this.log(`No webview with id ${receiver.webviewId} is registered.`, 'warn');
@@ -325,8 +324,10 @@ export class Messenger implements MessengerAPI {
             }
         } else if (receiver.type === 'broadcast') {
             for (const view of this.viewRegistry.values()) {
-                this.sendNotificationToWebview(type, receiver, params, view)
-                    .catch(err => this.log(String(err), 'error'));
+                if (view.options.broadcastMethods && view.options.broadcastMethods.indexOf(type.method) >= 0) {
+                    this.sendNotificationToWebview(type, receiver, params, view.container)
+                        .catch(err => this.log(String(err), 'error'));
+                }
             }
         }
     }
@@ -388,6 +389,20 @@ export interface RequestData {
     resolve: (value: unknown) => void,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reject: (reason?: any) => void
+}
+
+export interface ViewData {
+    id: string
+    container: ViewContainer
+    options: ViewOptions
+}
+
+export interface ViewOptions {
+    /**
+     * Methods to be received by the webview when corresponding notifications are sent with
+     * a `broadcast` type. If omitted, no broadcast notifications will be received.
+     */
+    broadcastMethods?: string[]
 }
 
 class IdProvider {
