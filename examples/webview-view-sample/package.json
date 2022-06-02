@@ -1,0 +1,78 @@
+{
+	"name": "calico-colors",
+	"description": "Calico Colors - A Webview View API Sample",
+	"version": "0.0.1",
+	"publisher": "vscode-samples",
+	"private": true,
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.50.0"
+	},
+	"extensionKind": [
+		"ui",
+		"workspace"
+	],
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onView:calicoColors.colorsView",
+		"onCommand:calicoColors.addColor",
+		"onCommand:calicoColors.clearColors"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"views": {
+			"explorer": [
+				{
+					"type": "webview",
+					"id": "calicoColors.colorsView",
+					"name": "Calico Colors"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "calicoColors.addColor",
+				"category": "Calico Colors",
+				"title": "Add Color"
+			},
+			{
+				"command": "calicoColors.clearColors",
+				"category": "Calico Colors",
+				"title": "Clear Colors",
+				"icon": "$(clear-all)"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "calicoColors.clearColors",
+					"group": "navigation",
+					"when": "view == calicoColors.colorsView"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"clean": "rimraf out",
+		"build": "npm run browserify && npm run compile",
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint . --ext .ts,.tsx",
+		"browserify": "browserify ./media/main.js > ./media/web-view-bundle.js",
+		"watch": "tsc -w -p ./"
+	},
+	"dependencies": {
+		"vscode-messenger": "^0.1.4",
+		"vscode-messenger-webview": "^0.1.4"
+	},
+	"devDependencies": {
+		"browserify": "^17.0.0",
+		"@types/vscode": "^1.53.0",
+		"@typescript-eslint/eslint-plugin": "^5.19.0",
+		"@typescript-eslint/parser": "^5.19.0",
+		"eslint": "^8.13.0",
+		"typescript": "^4.6.3"
+	}
+}

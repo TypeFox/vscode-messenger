@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "ES6",
+		"lib": ["ES6", "dom"],
+		"outDir": "out",
+		"sourceMap": true,
+		"strict": true,
+		"rootDir": "src"
+	},
+	"references": [{ "path": "../../packages/vscode-messenger" }, {"path": "../../packages/vscode-messenger-common" }],
+	"exclude": ["out", "node_modules", ".vscode-test"]
+}
