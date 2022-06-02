@@ -306,10 +306,11 @@ describe('Simple test', () => {
 
     test('Broadcast notification to all webviews', () => {
         const messenger = new Messenger({ debugLog: true });
-        messenger.registerWebviewView(view1);
-        messenger.registerWebviewView(view2);
+        messenger.registerWebviewView(view1, { broadcastMethods: [simpleNotification.method] });
+        messenger.registerWebviewView(view2, { broadcastMethods: [] });
         messenger.sendNotification(simpleNotification, BROADCAST, 'ping');
 
+        expect(view1.messages.length).toBe(1);
         expect(view1.messages[0]).toMatchObject(
             {
                 method: 'notification',
@@ -319,21 +320,13 @@ describe('Simple test', () => {
                 params: 'ping'
             }
         );
-        expect(view2.messages[0]).toMatchObject(
-            {
-                method: 'notification',
-                receiver: {
-                    type: 'broadcast'
-                },
-                params: 'ping'
-            }
-        );
+        expect(view2.messages.length).toBe(0);
     });
 
     test('Broadcast from one webview to extension and other webview', async () => {
         const messenger = new Messenger();
-        messenger.registerWebviewView(view1);
-        messenger.registerWebviewView(view2);
+        messenger.registerWebviewView(view1, { broadcastMethods: [simpleNotification.method] });
+        messenger.registerWebviewView(view2, { broadcastMethods: [simpleNotification.method] });
 
         let handled = '';
         messenger.onNotification(simpleNotification, (params: string) => {
