@@ -5,6 +5,6 @@
         { "path": "packages/vscode-messenger-common" },
         { "path": "packages/vscode-messenger-webview" },
         { "path": "packages/vscode-messenger" },
-        { "path": "examples/webview-view-sample" }
+        { "path": "examples/calico-colors" }
     ]
 }

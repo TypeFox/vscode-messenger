@@ -14,3 +14,8 @@ Demonstrates VS Code Messenger API. This includes:
 - `F5` to start debugging
 
 In the explorer, expand the `Calico Colors` view.
+
+### Using the view
+- Use 'Add Color' button to add one or more colors to the list
+- Open an editor and click on one of the colors list entry, colors HEX representation should be pasted into the opened editor
+- To clear the view use 'Clear Colors' toolbar action
