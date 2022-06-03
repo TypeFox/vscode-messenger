@@ -31,6 +31,15 @@
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Run Color Example",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": ["--extensionDevelopmentPath=${workspaceRoot}/examples"],
+            "outFiles": ["${workspaceFolder}/out/**/*.js"],
+            "preLaunchTask": "npm: watch"
         }
     ]
 }
