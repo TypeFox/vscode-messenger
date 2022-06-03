@@ -22,6 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('calicoColors.clearColors', () => {
 			provider.clearColors();
 		}));
+	return {
+		
+	};
 }
 
 export const colorSelectType: NotificationType<string> = { method: 'colorSelected' };
