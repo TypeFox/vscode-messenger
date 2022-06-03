@@ -4,6 +4,7 @@
  * terms of the MIT License, which is available in the project root.
  */
 import * as vscode from 'vscode';
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Messenger Devtools activated.');
 
@@ -12,6 +13,10 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(disposable);
+    const extHost = vscode.extensions.getExtension('vscode-messenger-examples.calico-colors');
+    const publicApi = extHost?.exports;
+    const messenger = publicApi.messenger();
+    console.log(messenger);
 }
 
 // this method is called when your extension is deactivated

@@ -54,6 +54,10 @@
                 "${workspaceFolder}/examples/calico-colors",
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-messenger-devtools"
             ],
+            "outFiles": [
+                "${workspaceFolder}/examples/calico-colors/out/**/*.js",
+                "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
+            ],
             "preLaunchTask": "${defaultBuildTask}"
         }
     ]

@@ -23,7 +23,9 @@ export function activate(context: vscode.ExtensionContext) {
 			provider.clearColors();
 		}));
 	return {
-		
+		messenger() {
+			return provider.getMessenger();
+		}
 	};
 }
 
@@ -43,6 +45,10 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 		private readonly _extensionUri: vscode.Uri,
 	) {
 		this.messenger = new Messenger();
+	}
+
+	public getMessenger(): Messenger {
+		return this.messenger;
 	}
 
 	public resolveWebviewView(
