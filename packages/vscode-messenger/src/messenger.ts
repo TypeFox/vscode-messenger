@@ -24,6 +24,8 @@ export class Messenger implements MessengerAPI {
 
     protected readonly requests: Map<string, RequestData> = new Map();
 
+    protected readonly eventListeners: Set<(event: MessengerEvent) => void> = new Set();
+
     protected readonly options: MessengerOptions;
 
     constructor(options?: MessengerOptions) {
@@ -76,7 +78,10 @@ export class Messenger implements MessengerAPI {
                         webviewType: view.viewType
                     };
                 }
-                return this.processMessage(msg, res => view.webview.postMessage(res))
+                return this.processMessage(msg, res => {
+                    this.notifyEventListeners(res);
+                    return view.webview.postMessage(res);
+                })
                     .catch(err => this.log(String(err), 'error'));
             }
         });
@@ -87,6 +92,7 @@ export class Messenger implements MessengerAPI {
      * a locally registered message handler.
      */
     protected async processMessage(msg: Message, responseCallback: (res: Message) => Thenable<boolean>): Promise<void> {
+        this.notifyEventListeners(msg);
         if (msg.receiver.type === 'extension') {
             // The message is directed to this host extension
             if (isRequestMessage(msg)) {
@@ -290,6 +296,7 @@ export class Messenger implements MessengerAPI {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             params: params as any
         };
+        this.notifyEventListeners(message);
         const posted = await view.webview.postMessage(message);
         if (!posted) {
             this.log(`Failed to send message to view: ${participantToString(receiver)}`, 'error');
@@ -347,10 +354,56 @@ export class Messenger implements MessengerAPI {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             params: params as any
         };
+        this.notifyEventListeners(message);
         const result = await view.webview.postMessage(message);
         if (!result) {
             this.log(`Failed to send message to view: ${participantToString(receiver)}`, 'error');
         }
+    }
+
+    protected async notifyEventListeners(msg: Message): Promise<void> {
+        if (this.eventListeners.size > 0) {
+            const event: MessengerEvent = {
+                type: 'unknown',
+                sender: msg.sender ? participantToString(msg.sender) : undefined,
+                receiver: participantToString(msg.receiver),
+                size: 0
+            };
+            if (isRequestMessage(msg)) {
+                event.type = 'request';
+                event.id = msg.id;
+                event.method = msg.method;
+                event.size = JSON.stringify(msg.params)?.length ?? 0;
+            } else if (isNotificationMessage(msg)) {
+                event.type = 'notification';
+                event.method = msg.method;
+                event.size = JSON.stringify(msg.params)?.length ?? 0;
+            } else if (isResponseMessage(msg)) {
+                event.type = 'response';
+                event.id = msg.id;
+                event.size = JSON.stringify(msg.result)?.length ?? 0;
+            } else {
+                event.error = `Unknown message to ${msg.receiver}`;
+            }
+            this.eventListeners.forEach(listener => listener(event));
+        }
+        return Promise.resolve();
+    }
+
+    diagnosticApi(): MessengerDiagnostic {
+        return {
+            extensionInfo: () => {
+                return {
+                    diagnosticListeners: this.eventListeners.size,
+                    pendingRequest: this.requests.size,
+                    webviews:
+                        Array.from(this.viewRegistry.entries()).map(
+                            entry => { return { id: entry[0], type: entry[1].container.viewType }; })
+                };
+            },
+            addEventListener: (listener) => this.eventListeners.add(listener),
+            removeEventListener: (listener) => this.eventListeners.delete(listener)
+        };
     }
 
     private nextMsgId = 0;
@@ -437,3 +490,35 @@ function participantToString(participant: MessageParticipant): string {
             return 'broadcast';
     }
 }
+
+/**
+ * Messenger Diagnostic API
+ */
+export interface MessengerDiagnostic {
+    extensionInfo: () => ExtensionInfo;
+    addEventListener: (listener: (event: MessengerEvent) => void) => void;
+    removeEventListener: (listener: (event: MessengerEvent) => void) => void;
+}
+
+export interface ExtensionInfo {
+    webviews: Array<{ type: string, id: string }>;
+    diagnosticListeners: number;
+    pendingRequest: number;
+}
+
+export function isMessengerDiagnostic(obj: unknown): obj is MessengerDiagnostic {
+    return typeof obj === 'object' && obj !== null
+        && !!(obj as MessengerDiagnostic).extensionInfo
+        && !!(obj as MessengerDiagnostic).addEventListener
+        && !!(obj as MessengerDiagnostic).removeEventListener;
+}
+export interface MessengerEvent {
+    id?: string | undefined,
+    type: 'notification' | 'request' | 'response' | 'unknown',
+    sender?: string,
+    receiver: string,
+    method?: string | undefined,
+    error?: string | undefined,
+    size: number
+}
+

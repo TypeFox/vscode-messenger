@@ -1,0 +1,58 @@
+body {
+  --event-table-class: ag-theme-alpine
+}
+
+body[data-vscode-theme-kind="vscode-dark"] {
+  --event-table-class: ag-theme-alpine-dark
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: normal;
+  height: 100%;
+  width: 100%;
+}
+
+
+main>* {
+  margin: 1rem 0;
+}
+
+#header {
+  display: flex;
+}
+
+.refresh-button {
+  margin-left: 4px;
+  margin-top: auto;
+}
+
+#ext-info {
+  display: flex;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+span.info-param-name {
+  margin-right: 10px;
+}
+
+.ext-info-badge {
+  vertical-align: 'center';
+  margin-right: 10px;
+}
+
+
+span.ext-info-badge.codicon.codicon-warning {
+  color: #eba800;
+}
+
+span.ext-info-badge.codicon.codicon-stop {
+  color: #ec3f00;
+}
+
+span.ext-info-badge.codicon.codicon-pass {
+  color: green;
+}

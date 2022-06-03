@@ -109,7 +109,7 @@ export function isNotificationMessage(msg: Message): msg is NotificationMessage 
     return !(msg as RequestMessage).id && !!(msg as NotificationMessage).method;
 }
 
-export type JsonAny =  JsonPrimitive | JsonMap | JsonArray | null;
+export type JsonAny = JsonPrimitive | JsonMap | JsonArray | null;
 
 export type JsonPrimitive = string | number | boolean;
 

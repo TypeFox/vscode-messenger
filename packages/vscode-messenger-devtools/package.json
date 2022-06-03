@@ -1,0 +1,69 @@
+{
+	"name": "vscode-messenger-devtools",
+	"displayName": "VS Code Messenger Devtools",
+	"description": "Helpful message communications visualization for VS Code.",
+	"version": "0.4.0",
+	"engines": {
+		"vscode": "^1.53.0"
+	},
+	"categories": [
+		"Visualization",
+		"Debuggers",
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:vscode-messenger-devtools.activate",
+		"onView:vscode-messenger-devtools.messengerView"
+	],
+	"main": "./lib/extension.js",
+	"contributes": {
+		"viewsContainers": {
+			"panel": [
+				{
+					"id": "vscode-messenger-devtools_viewContainer",
+					"title": "Messenger",
+					"icon": "${circuit-board}"
+				}
+			]
+		},
+		"views": {
+			"vscode-messenger-devtools_viewContainer": [
+				{
+					"type": "webview",
+					"id": "vscode-messenger-devtools.messengerView",
+					"name": "Messenger"
+				}
+			]
+		},
+		"commands": [
+			{
+				"category": "Developer",
+				"command": "vscode-messenger-devtools.activate",
+				"title": "Open vscode-messenger devtools"
+			}
+		]
+	},
+	"scripts": {
+		"install:all": "npm install && npm --prefix ./webview-ui install ./webview-ui",
+		"start:webview": "npm --prefix ./webview-ui run start",
+		"build:webview": "npm --prefix ./webview-ui run build",
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./lib/test/runTest.js"
+	},
+	"dependencies": {
+		"@vscode/webview-ui-toolkit": "~1.0.0",
+		"vscode-messenger": "~0.3.0"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.70.0",
+		"@types/vscode-webview": "^1.57.0",
+		"@typescript-eslint/eslint-plugin": "^5.15.0",
+		"@typescript-eslint/parser": "^5.15.0",
+		"eslint": "^8.11.0",
+		"typescript": "^4.6.2"
+	}
+}

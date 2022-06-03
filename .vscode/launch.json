@@ -37,9 +37,28 @@
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
-            "args": ["--extensionDevelopmentPath=${workspaceRoot}/examples"],
-            "outFiles": ["${workspaceFolder}/out/**/*.js"],
+            "args": [
+                "${workspaceFolder}/examples",
+                "--extensionDevelopmentPath=${workspaceFolder}/examples/calico-colors"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/examples/calico-colors/out/**/*.js"
+            ],
             "preLaunchTask": "npm: watch"
+        },
+        {
+            "name": "Run Devtools Extension",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "${workspaceFolder}/examples/calico-colors",
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-messenger-devtools"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/examples/calico-colors/out/**/*.js",
+                "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
+            ],
+            "preLaunchTask": "${defaultBuildTask}"
         }
     ]
 }

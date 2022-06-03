@@ -1,0 +1,19 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+	  "rootDir": "src",
+	  "outDir": "lib"
+	},
+	"include": [
+	  "src/**/*",
+	  "webview-ui/**/*"
+	],
+	"references": [
+		{ "path": "../vscode-messenger" }
+	  ],
+	"exclude": [
+	  "lib",
+	  "node_modules",
+	  "webview-ui"
+	]
+  }
