@@ -1,6 +1,6 @@
 {
   "name": "vscode-messenger",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "VS Code Messenger: extension integration",
   "keywords": [
     "vscode",
@@ -26,7 +26,7 @@
     "publish:latest": "npm publish --tag latest"
   },
   "dependencies": {
-    "vscode-messenger-common": "0.1"
+    "vscode-messenger-common": "0.2"
   },
   "devDependencies": {
     "@types/jest": "^27.4.1",
