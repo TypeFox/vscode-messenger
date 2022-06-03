@@ -23,8 +23,5 @@ jobs:
         npm install
         npm test
         npm run lint
-    - name: Build Examples
-      shell: bash
-      run: npm run build
-      working-directory: examples/calico-colors
+
 

@@ -55,6 +55,7 @@
 		}
 	},
 	"scripts": {
+		"prepare": "npm run clean && npm run build",
 		"clean": "rimraf out",
 		"build": "npm run browserify && npm run compile",
 		"vscode:prepublish": "npm run compile",
