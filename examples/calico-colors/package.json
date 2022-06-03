@@ -2,11 +2,11 @@
 	"name": "calico-colors",
 	"description": "Calico Colors - A Webview View API Sample",
 	"version": "0.0.1",
-	"publisher": "vscode-samples",
+	"publisher": "vscode-messenger-examples",
 	"private": true,
 	"license": "MIT",
 	"engines": {
-		"vscode": "^1.50.0"
+		"vscode": "^1.53.0"
 	},
 	"extensionKind": [
 		"ui",

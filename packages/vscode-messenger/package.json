@@ -40,10 +40,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/TypeFox/vscode-webview-tools",
+    "url": "https://github.com/TypeFox/vscode-messenger",
     "directory": "packages/vscode-messenger-extension"
   },
-  "bugs": "https://github.com/TypeFox/vscode-webview-tools/issues",
+  "bugs": "https://github.com/TypeFox/vscode-messenger/issues",
   "author": {
     "name": "TypeFox",
     "url": "https://www.typefox.io"
