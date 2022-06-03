@@ -55,11 +55,10 @@
 		}
 	},
 	"scripts": {
-		"prepare": "npm run clean && npm run build",
 		"clean": "rimraf out",
-		"build": "npm run browserify && npm run compile",
+		"build": "npm run compile",
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
+		"compile": "tsc -p ./ && npm run browserify",
 		"lint": "eslint . --ext .ts,.tsx",
 		"browserify": "browserify ./media/main.js > ./media/web-view-bundle.js",
 		"watch": "tsc -w -p ./"
