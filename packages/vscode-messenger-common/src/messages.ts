@@ -113,7 +113,7 @@ export type JsonArray = JsonAny[];
  * Data structure for defining a request type.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type RequestType<P extends JsonAny, R> = { method: string };
+export type RequestType<P, R> = { method: string };
 
 /**
  * Function for handling incoming requests.
@@ -125,7 +125,7 @@ export type HandlerResult<R> = R | Promise<R>;
  * Data structure for defining a notification type.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type NotificationType<P extends JsonAny> = { method: string };
+export type NotificationType<P> = { method: string };
 
 /**
  * Function for handling incoming notifications.
@@ -136,8 +136,8 @@ export type NotificationHandler<P> = (params: P) => void | Promise<void>;
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R>
-    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
-    sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void
-    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): void
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R>
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
+    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
 }

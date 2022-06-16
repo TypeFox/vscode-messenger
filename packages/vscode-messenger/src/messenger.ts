@@ -228,21 +228,21 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
         if (this.handlerRegistry.has(type.method)) {
             this.log(`A request handler is already registered for method ${type.method} and will be overridden.`, 'warn');
         }
         this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
     }
 
-    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
         if (this.handlerRegistry.has(type.method)) {
             this.log(`A notification handler is already registered for method ${type.method} and will be overridden.`, 'warn');
         }
         this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
     }
 
-    async sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
@@ -271,7 +271,7 @@ export class Messenger implements MessengerAPI {
         throw new Error(`Invalid receiver: ${JSON.stringify(receiver)}`);
     }
 
-    protected async sendRequestToWebview<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<R> {
+    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<R> {
         // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
         if (!view.visible && this.options.ignoreHiddenViews) {
             return Promise.reject(new Error(`Skipped request for hidden view: ${participantToString(receiver)}`));
@@ -286,7 +286,8 @@ export class Messenger implements MessengerAPI {
             method: type.method,
             sender: HOST_EXTENSION,
             receiver,
-            params
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            params: params as any
         };
         const posted = await view.webview.postMessage(message);
         if (!posted) {
@@ -297,7 +298,7 @@ export class Messenger implements MessengerAPI {
         return result;
     }
 
-    sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
+    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
         if (receiver.type === 'extension') {
             throw new Error('Notifications to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
@@ -332,7 +333,7 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    protected async sendNotificationToWebview<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<void> {
+    protected async sendNotificationToWebview<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<void> {
         if (!view.visible && this.options.ignoreHiddenViews) {
             this.log(`Skipped notification for hidden view: ${participantToString(receiver)}`, 'warn');
             return;
@@ -342,7 +343,8 @@ export class Messenger implements MessengerAPI {
             method: type.method,
             sender: HOST_EXTENSION,
             receiver,
-            params
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            params: params as any
         };
         const result = await view.webview.postMessage(message);
         if (!result) {
