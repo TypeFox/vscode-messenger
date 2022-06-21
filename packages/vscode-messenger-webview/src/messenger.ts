@@ -28,12 +28,12 @@ export class Messenger implements MessengerAPI {
         this.options = { ...defaultOptions, ...options };
     }
 
-    onRequest<P extends JsonAny, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Messenger {
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Messenger {
         this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
         return this;
     }
 
-    onNotification<P extends JsonAny>(type: NotificationType<P>, handler: NotificationHandler<P>): Messenger {
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Messenger {
         this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
         return this;
     }
@@ -119,7 +119,7 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    sendRequest<P extends JsonAny, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
         }
@@ -132,17 +132,19 @@ export class Messenger implements MessengerAPI {
             id: msgId,
             method: type.method,
             receiver,
-            params
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            params: params as any
         };
         this.vscode.postMessage(message);
         return result;
     }
 
-    sendNotification<P extends JsonAny>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
+    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
         const message: NotificationMessage = {
             method: type.method,
             receiver,
-            params
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            params: params as any
         };
         this.vscode.postMessage(message);
     }
