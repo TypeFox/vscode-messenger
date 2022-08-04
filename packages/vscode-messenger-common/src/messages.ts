@@ -23,12 +23,22 @@ export const HOST_EXTENSION: Readonly<ExtensionMessageParticipant> = { type: 'ex
 /**
  * A webview must be identified either with an ID (`webviewId`) or a type (`webviewType`).
  */
-export interface WebviewMessageParticipant {
+export type WebviewMessageParticipant = WebviewIdMessageParticipant | WebviewTypeMessageParticipant;
+
+export interface WebviewIdMessageParticipant {
     type: 'webview'
     /** Identifier of a specific webview instance. */
-    webviewId?: string
+    webviewId: string
+}
+
+export interface WebviewTypeMessageParticipant {
+    type: 'webview'
     /** Webview panel type or webview view type. */
-    webviewType?: string
+    webviewType: string
+}
+
+export function isWebviewIdMessageParticipant(participant: MessageParticipant): participant is WebviewIdMessageParticipant {
+    return !!(participant as WebviewIdMessageParticipant).webviewId;
 }
 
 /**

@@ -7,9 +7,9 @@
 import * as vscode from 'vscode';
 import {
     HOST_EXTENSION,
-    isMessage, isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, Message, MessageParticipant,
+    isMessage, isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant,
     MessengerAPI, NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage,
-    RequestType, ResponseError, ResponseMessage, WebviewMessageParticipant
+    RequestType, ResponseError, ResponseMessage
 } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
@@ -99,7 +99,7 @@ export class Messenger implements MessengerAPI {
                 this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
             }
         } else if (msg.receiver.type === 'webview') {
-            if (msg.receiver.webviewId) {
+            if (isWebviewIdMessageParticipant(msg.receiver)) {
                 // The message is directed to a specific webview
                 const receiverView = this.viewRegistry.get(msg.receiver.webviewId);
                 if (receiverView) {
@@ -112,16 +112,17 @@ export class Messenger implements MessengerAPI {
                 }
             } else if (msg.receiver.webviewType) {
                 // The message is directed to all webviews of a specific type
-                const receiverViews = this.viewTypeRegistry.get(msg.receiver.webviewType);
+                const webViewType = msg.receiver.webviewType;
+                const receiverViews = this.viewTypeRegistry.get(webViewType);
                 if (receiverViews) {
                     receiverViews.forEach(async view => {
                         const result = await view.webview.postMessage(msg);
                         if (!result) {
-                            this.log(`Failed to forward message to view: ${(msg.receiver as WebviewMessageParticipant).webviewType}`, 'error');
+                            this.log(`Failed to forward message to view: ${webViewType}`, 'error');
                         }
                     });
                 } else {
-                    this.log(`No webview with type ${msg.receiver.webviewType} is registered.`, 'warn');
+                    this.log(`No webview with type ${webViewType} is registered.`, 'warn');
                 }
             } else {
                 this.log(`A receiver of type 'webview' must specify a 'webviewId' or a 'webviewType': ${JSON.stringify(msg)}`, 'error');
@@ -246,7 +247,7 @@ export class Messenger implements MessengerAPI {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
-            if (receiver.webviewId) {
+            if (isWebviewIdMessageParticipant(receiver)) {
                 const receiverView = this.viewRegistry.get(receiver.webviewId);
                 if (receiverView) {
                     return this.sendRequestToWebview(type, receiver, params, receiverView.container);
@@ -302,7 +303,7 @@ export class Messenger implements MessengerAPI {
         if (receiver.type === 'extension') {
             throw new Error('Notifications to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
-            if (receiver.webviewId) {
+            if (isWebviewIdMessageParticipant(receiver)) {
                 const receiverView = this.viewRegistry.get(receiver.webviewId);
                 if (receiverView) {
                     this.sendNotificationToWebview(type, receiver, params, receiverView.container)
@@ -425,7 +426,7 @@ function participantToString(participant: MessageParticipant): string {
         case 'extension':
             return 'host extension';
         case 'webview':
-            if (participant.webviewId) {
+            if (isWebviewIdMessageParticipant(participant)) {
                 return participant.webviewId;
             } else if (participant.webviewType) {
                 return participant.webviewType;

@@ -6,7 +6,7 @@
 
 import {
     isMessage,
-    isNotificationMessage, isRequestMessage, isResponseMessage, JsonAny, Message, MessageParticipant, MessengerAPI,
+    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI,
     NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
 } from 'vscode-messenger-common';
 import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
@@ -193,14 +193,15 @@ function participantToString(participant: MessageParticipant): string {
     switch (participant.type) {
         case 'extension':
             return 'host extension';
-        case 'webview':
-            if (participant.webviewId) {
+        case 'webview':{
+            if (isWebviewIdMessageParticipant(participant)) {
                 return participant.webviewId;
             } else if (participant.webviewType) {
                 return participant.webviewType;
             } else {
                 return 'unspecified webview';
             }
+        }
         case 'broadcast':
             return 'broadcast';
     }
