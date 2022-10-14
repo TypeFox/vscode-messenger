@@ -1,10 +1,17 @@
 {
 	"name": "vscode-messenger-devtools",
+	"version": "0.4.1",
+	"publisher": "dhuebner",
 	"displayName": "VS Code Messenger Devtools",
 	"description": "Helpful message communications visualization for VS Code.",
-	"version": "0.4.0",
+	"keywords": [
+		"vscode",
+		"webview",
+		"rpc",
+		"messaging"
+	],
 	"engines": {
-		"vscode": "^1.53.0"
+		"vscode": "^1.70.0"
 	},
 	"categories": [
 		"Visualization",
@@ -15,7 +22,9 @@
 		"onCommand:vscode-messenger-devtools.activate",
 		"onView:vscode-messenger-devtools.messengerView"
 	],
-	"main": "./lib/extension.js",
+	"main": "./lib/extension",
+	"types": "./lib/extension.d.ts",
+	"license": "MIT",
 	"contributes": {
 		"viewsContainers": {
 			"panel": [
@@ -56,7 +65,7 @@
 	},
 	"dependencies": {
 		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "~0.3.0"
+		"vscode-messenger": "^0.4.1"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.70.0",
@@ -65,5 +74,14 @@
 		"@typescript-eslint/parser": "^5.15.0",
 		"eslint": "^8.11.0",
 		"typescript": "^4.6.2"
+	},
+	"bugs": "https://github.com/TypeFox/vscode-messenger/issues",
+	"author": {
+		"name": "Dennis Hübner"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/TypeFox/vscode-messenger",
+		"directory": "packages/vscode-messenger-devtool"
 	}
 }
