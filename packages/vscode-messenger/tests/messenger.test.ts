@@ -46,7 +46,7 @@ function createWebview(viewType: string) {
     return view;
 }
 
-describe('Simple test', () => {
+describe('Extension Messenger', () => {
     let view1: any;
     let view2: any;
 
@@ -128,6 +128,59 @@ describe('Simple test', () => {
         expect(handled).toBe('handled:test');
     });
 
+    test('Handle notification with multiple handlers', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        let handled1 = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled1 = 'handled1:' + params;
+        });
+        let handled2 = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled2 = 'handled2:' + params;
+        });
+        // Simulate webview notification
+        view1.messageCallback({ ...simpleNotification, receiver: HOST_EXTENSION, params: 'test' });
+        expect(handled1).toBe('handled1:test');
+        expect(handled2).toBe('handled2:test');
+    });
+
+    test('Handle notification after removing a handler', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        let handled1 = '';
+        const remove1 = messenger.onNotification(simpleNotification, (params: string) => {
+            handled1 = 'handled1:' + params;
+        });
+        let handled2 = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled2 = 'handled2:' + params;
+        });
+        remove1.dispose();
+        // Simulate webview notification
+        view1.messageCallback({ ...simpleNotification, receiver: HOST_EXTENSION, params: 'test' });
+        expect(handled1).toBe('');
+        expect(handled2).toBe('handled2:test');
+    });
+
+    test('Handle notification with sender filter', () => {
+        const messenger = new Messenger();
+        const p1 = messenger.registerWebviewView(view1);
+        const p2 = messenger.registerWebviewView(view2);
+        let handled1 = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled1 = 'handled1:' + params;
+        }, { sender: p1 });
+        let handled2 = '';
+        messenger.onNotification(simpleNotification, (params: string) => {
+            handled2 = 'handled2:' + params;
+        }, { sender: p2 });
+        // Simulate webview notification
+        view1.messageCallback({ ...simpleNotification, receiver: HOST_EXTENSION, params: 'test' });
+        expect(handled1).toBe('handled1:test');
+        expect(handled2).toBe('');
+    });
+
     test('Handle request', async () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
@@ -165,6 +218,48 @@ describe('Simple test', () => {
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Unknown method: request' } });
+    });
+
+    test('Handle request with multiple handlers', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled1:' + params;
+        });
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled2:' + params;
+        });
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+        expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Multiple matching request handlers' } });
+    });
+
+    test('Handle request with multiple handlers, but none matching', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled1:' + params;
+        }, { sender: { type: 'webview', webviewId: 'asdf' }});
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled2:' + params;
+        }, { sender: { type: 'webview', webviewType: 'asdf' }});
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+        expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'No matching request handler' } });
+    });
+
+    test('Handle request with multiple handlers, only one matching', async () => {
+        const messenger = new Messenger();
+        const p1 = messenger.registerWebviewView(view1);
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled1:' + params;
+        }, { sender: { type: 'webview', webviewId: 'asdf' }});
+        messenger.onRequest(simpleRequest, (params: string) => {
+            return 'handled2:' + params;
+        }, { sender: p1 });
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+        expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', result: 'handled2:test' });
     });
 
     test('Do not handle events for hidden view', async () => {
