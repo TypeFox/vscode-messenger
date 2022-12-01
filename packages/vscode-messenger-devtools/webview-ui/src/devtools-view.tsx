@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-//import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import { VSCodeBadge, VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/dist/styles/ag-grid.css';
@@ -10,11 +9,12 @@ import React from 'react';
 import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
+import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
 import '../node_modules/@vscode/codicons/dist/codicon.ttf';
-import './devtools-view.css';
-import { ReactECharts, ReactEChartsProps } from './table/react-echart';
+import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { vscodeApi } from './utilities/vscode';
+
 interface ExtensionData {
     id: string
     name: string
@@ -53,19 +53,16 @@ const columnDefs: ColDef[] = [
         width: 110,
         cellRenderer: (params: any) => {
             const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
-            return <div style={{display:'flex', alignContent: 'space-between'}}><span style={ { flexGrow:1 }}>{params.value}</span>{error}</div>;
+            return <div style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
         }
     },
     { field: 'sender', width: 180 },
     { field: 'receiver', width: 180 },
     { field: 'method', width: 135 },
     { field: 'id' },
-    { field: 'size' },
+    { field: 'size' , headerName: 'Size (chars)'},
     { field: 'error' },
 ];
-
-type ChartData = Map<string, { notification: number; response: number; request: number; }>;
-
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
 
     refObj: React.RefObject<AgGridReact<MessengerEvent>>;
@@ -127,38 +124,12 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     render() {
-        const chartData: ChartData = new Map();
         const renderingData = this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? [];
-        const charSeries: Array<{ name: string, type: 'bar', data: number[] }> = [];
 
-        this.collectChartData(chartData, renderingData, charSeries);
+        const charSeries = collectChartData(renderingData);
+        const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)');
+        const optionCount = createOptions(charSeries.series[1], charSeries.senderY);
 
-        const option: ReactEChartsProps['option'] = {
-            dataset: { source: renderingData },
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow',
-                },
-            },
-            legend: {},
-            grid: {
-                left: '1%',
-                right: '2%',
-                top: '2%',
-                bottom: '2%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'value',
-                boundaryGap: [0, 0.01]
-            },
-            yAxis: {
-                type: 'category',
-                data: Array.from(chartData.keys())
-            },
-            series: charSeries
-        };
         const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
         const updateState = (selectedId: string) => {
             this.updateState({ ...this.state, selectedExtension: selectedId }, true);
@@ -205,8 +176,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
                 </div>
                 <div id='event-table'
-                    className={getComputedStyle(document.getElementById('root')!).getPropertyValue('--event-table-class')}
-                    style={{ height: 400, width: 'auto' }}>
+                    className={getComputedStyle(document.getElementById('root')!).getPropertyValue('--event-table-class')}>
                     <AgGridReact
                         ref={this.refObj}
                         rowData={renderingData}
@@ -229,55 +199,12 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     >
                     </AgGridReact>
                 </div>
-                <div>
-                    <ReactECharts option={option} />
+                <div id='charts'>
+                    <ReactECharts option={optionCount} />
+                    <ReactECharts option={optionSize} />
                 </div>
             </>
         );
-    }
-
-    collectChartData(chartData: ChartData, renderingData: MessengerEvent[], charSeries: Array<{ name: string, type: 'bar', data: number[] }>) {
-        renderingData.map(d => d.sender ?? 'unknown').filter((value, index, self) => self.indexOf(value) === index).sort().forEach((it) => {
-            chartData.set(it, {
-                notification: 0,
-                response: 0,
-                request: 0
-            });
-        });
-
-        renderingData.forEach((entry) => {
-            const value = chartData.get(entry.sender ?? 'unknown');
-            if (value) {
-                switch (entry.type) {
-                    case 'request':
-                        value.request += entry.size;
-                        break;
-                    case 'response':
-                        value.response += entry.size;
-                        break;
-                    case 'notification':
-                        value.notification += entry.size;
-                        break;
-                }
-            }
-        });
-        ['request', 'response', 'notification'].forEach(type => {
-            const data = Array.from(chartData.values()).map(value => {
-                if (type === 'request')
-                    return value.request;
-                else if (type === 'response')
-                    return value.response;
-                else if (type === 'notification')
-                    return value.notification;
-                else
-                    return 0;
-            });
-            charSeries.push({
-                name: type,
-                type: 'bar',
-                data: data
-            });
-        });
     }
 }
 

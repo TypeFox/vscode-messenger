@@ -10,43 +10,49 @@
   border-right-width: 1px ;
   border-right-style: solid ;
 }
+html {
+  height: 100%;
+}
 
 body {
+  height: 100%;
   --event-table-class: ag-theme-alpine
 }
 
 body[data-vscode-theme-kind="vscode-dark"] {
+  height: 100%;
   --event-table-class: ag-theme-alpine-dark
 }
 
-
-main {
+#root {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: normal;
   height: 100%;
   width: 100%;
-}
-
-
-main>* {
-  margin: 1rem 0;
 }
 
 #header {
   display: flex;
 }
 
-.refresh-button {
-  margin-left: 4px;
-  margin-top: auto;
-}
-
 #ext-info {
   display: flex;
   margin-top: 5px;
   margin-bottom: 5px;
+}
+
+#event-table{
+  height: 100%
+}
+
+#charts {
+  display: flex;
+  flex-direction: row;
+}
+
+.refresh-button {
+  margin-left: 4px;
+  margin-top: auto;
 }
 
 span.info-param-name {
