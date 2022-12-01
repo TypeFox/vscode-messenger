@@ -26,7 +26,7 @@
     "publish:latest": "npm publish --tag latest"
   },
   "dependencies": {
-    "vscode-messenger-common": "^0.4.1"
+    "vscode-messenger-common": "^0.4.2"
   },
   "devDependencies": {
     "@types/jest": "^27.4.1",
