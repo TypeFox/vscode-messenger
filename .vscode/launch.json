@@ -55,7 +55,7 @@
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-messenger-devtools"
             ],
             "outFiles": [
-                "${workspaceFolder}/examples/calico-colors/out/**/*.js",
+                "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui/build/**/*.js",
                 "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
             ],
             "preLaunchTask": "${defaultBuildTask}"

@@ -65,7 +65,7 @@
 	},
 	"dependencies": {
 		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "^0.4.1"
+		"vscode-messenger": "^0.4.2"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.70.0",

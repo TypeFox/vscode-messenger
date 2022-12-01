@@ -1,38 +1,58 @@
+
+.ag-row .ag-header-row {
+  height: 30px;
+}
+
+.ag-cell .ag-header-cell {
+  padding-left: 7px;
+  padding-right: 7px;
+  border-right-color: black;
+  border-right-width: 1px ;
+  border-right-style: solid ;
+}
+html {
+  height: 100%;
+}
+
 body {
+  height: 100%;
   --event-table-class: ag-theme-alpine
 }
 
 body[data-vscode-theme-kind="vscode-dark"] {
+  height: 100%;
   --event-table-class: ag-theme-alpine-dark
 }
 
-main {
+#root {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: normal;
   height: 100%;
   width: 100%;
-}
-
-
-main>* {
-  margin: 1rem 0;
 }
 
 #header {
   display: flex;
 }
 
-.refresh-button {
-  margin-left: 4px;
-  margin-top: auto;
-}
-
 #ext-info {
   display: flex;
   margin-top: 5px;
   margin-bottom: 5px;
+}
+
+#event-table{
+  height: 100%
+}
+
+#charts {
+  display: flex;
+  flex-direction: row;
+}
+
+.refresh-button {
+  margin-left: 4px;
+  margin-top: auto;
 }
 
 span.info-param-name {
@@ -51,6 +71,11 @@ span.ext-info-badge.codicon.codicon-warning {
 
 span.ext-info-badge.codicon.codicon-stop {
   color: #ec3f00;
+}
+span.table-cell.codicon.codicon-stop {
+  color: #ec3f00;
+  align-self: center;
+  padding-left: 10px;
 }
 
 span.ext-info-badge.codicon.codicon-pass {

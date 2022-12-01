@@ -424,6 +424,7 @@ export class Messenger implements MessengerAPI {
                 event.type = 'response';
                 event.id = msg.id;
                 event.size = JSON.stringify(msg.result)?.length ?? 0;
+                event.error = msg.error?.message;
             } else {
                 event.error = `Unknown message to ${msg.receiver}`;
             }
@@ -443,7 +444,10 @@ export class Messenger implements MessengerAPI {
                             entry => { return { id: entry[0], type: entry[1].container.viewType }; })
                 };
             },
-            addEventListener: (listener) => this.eventListeners.add(listener),
+            addEventListener: (listener) => {
+                this.eventListeners.add(listener);
+                return new vscode.Disposable(() => this.eventListeners.delete(listener));
+            },
             removeEventListener: (listener) => this.eventListeners.delete(listener)
         };
     }
@@ -547,14 +551,39 @@ function participantToString(participant: MessageParticipant | undefined): strin
  * Messenger Diagnostic API
  */
 export interface MessengerDiagnostic {
+    /**
+     * @return Some important information about he extension.
+     */
     extensionInfo: () => ExtensionInfo;
-    addEventListener: (listener: (event: MessengerEvent) => void) => void;
+
+    /**
+     * Adds event listener that will be notified on new events.
+     * @return a disposable that removes provided listener from the listeners list.
+     */
+    addEventListener: (listener: (event: MessengerEvent) => void) => vscode.Disposable;
+
+    /**
+     * Allow to remove attached event listener.
+     *
+     * **Note**: vscode.Disposable returned by addEventListener can also be used to remove the listener from listener list.
+     */
     removeEventListener: (listener: (event: MessengerEvent) => void) => void;
 }
 
 export interface ExtensionInfo {
+    /**
+     * @return Information about registered web views
+     */
     webviews: Array<{ type: string, id: string }>;
+
+    /**
+     * @return Number of currently registered diagnostic listeners.
+     */
     diagnosticListeners: number;
+
+    /**
+     * @return Number of currently pending requests.
+     */
     pendingRequest: number;
 }
 
@@ -564,9 +593,12 @@ export function isMessengerDiagnostic(obj: unknown): obj is MessengerDiagnostic 
         && !!(obj as MessengerDiagnostic).addEventListener
         && !!(obj as MessengerDiagnostic).removeEventListener;
 }
+
+export type EventType = 'notification' | 'request' | 'response' | 'unknown';
+
 export interface MessengerEvent {
     id?: string | undefined,
-    type: 'notification' | 'request' | 'response' | 'unknown',
+    type: EventType,
     sender?: string,
     receiver: string,
     method?: string | undefined,
