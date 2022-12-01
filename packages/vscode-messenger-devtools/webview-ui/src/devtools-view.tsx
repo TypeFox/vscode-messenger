@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 //import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import { VSCodeBadge, VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
+import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine-dark.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
@@ -46,13 +47,21 @@ function restoreState(): DevtoolsComponentState | undefined {
     return undefined;
 }
 
-const columnDefs = [
-    { field: 'type' },
-    { field: 'sender' },
-    { field: 'receiver' },
-    { field: 'method' },
+const columnDefs: ColDef[] = [
+    {
+        field: 'type',
+        width: 110,
+        cellRenderer: (params: any) => {
+            const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
+            return <div style={{display:'flex', alignContent: 'space-between'}}><span style={ { flexGrow:1 }}>{params.value}</span>{error}</div>;
+        }
+    },
+    { field: 'sender', width: 180 },
+    { field: 'receiver', width: 180 },
+    { field: 'method', width: 135 },
     { field: 'id' },
     { field: 'size' },
+    { field: 'error' },
 ];
 
 type ChartData = Map<string, { notification: number; response: number; request: number; }>;
@@ -203,10 +212,20 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                         rowData={renderingData}
                         columnDefs={
                             columnDefs.map(col => {
-                                return { filter: true, resizable: true, sortable: true, flex: 1, ...col };
+                                return {
+                                    filter: true, resizable: true, sortable: true,
+                                    cellStyle: (params: any) => {
+                                        if (params.value === 'Police') {
+                                            //mark police cells as red
+                                            return { color: 'red', backgroundColor: 'green' };
+                                        }
+                                        return null;
+                                    },
+                                    ...col
+                                };
                             })}
                         rowHeight={30}
-                        headerHeight= {30}
+                        headerHeight={30}
                     >
                     </AgGridReact>
                 </div>

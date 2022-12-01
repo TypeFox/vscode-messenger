@@ -66,6 +66,11 @@ span.ext-info-badge.codicon.codicon-warning {
 span.ext-info-badge.codicon.codicon-stop {
   color: #ec3f00;
 }
+span.table-cell.codicon.codicon-stop {
+  color: #ec3f00;
+  align-self: center;
+  padding-left: 10px;
+}
 
 span.ext-info-badge.codicon.codicon-pass {
   color: green;
