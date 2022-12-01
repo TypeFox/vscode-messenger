@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
     mode: 'development',
     plugins: [react()],
+    assetsInclude: [
+        'node_modules/@vscode/codicons/dist/codicon.ttf',
+        'node_modules/@vscode/codicons/dist/codicon.css'
+    ],
     build: {
         outDir: 'build',
         sourcemap: true,

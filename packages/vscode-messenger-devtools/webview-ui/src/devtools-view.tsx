@@ -9,10 +9,11 @@ import React from 'react';
 import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
+import '../node_modules/@vscode/codicons/dist/codicon.css';
+import '../node_modules/@vscode/codicons/dist/codicon.ttf';
 import './devtools-view.css';
 import { ReactECharts, ReactEChartsProps } from './table/react-echart';
 import { vscodeApi } from './utilities/vscode';
-
 interface ExtensionData {
     id: string
     name: string
@@ -150,20 +151,19 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             series: charSeries
         };
         const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
+        const updateState = (selectedId: string) => {
+            this.updateState({ ...this.state, selectedExtension: selectedId }, true);
+            if (this.refObj?.current) {
+                // refresh table
+                this.refObj.current.api.setRowData(this.state.datasetSrc.get(selectedId)?.events ?? []);
+            }
+        };
         return (
             <>
                 <div id='header'>
                     <VSCodeDropdown>
                         {Array.from(this.state.datasetSrc.values()).map((ext) => (
-                            <VSCodeOption key={ext.id} onClick={() => {
-                                this.updateState({ ...this.state, selectedExtension: ext.id }, true);
-                                if (this.refObj?.current) {
-                                    // refresh table
-                                    this.refObj.current.api.setRowData(this.state.datasetSrc.get(ext.id)?.events ?? []);
-                                }
-                            }
-                            }
-                            >
+                            <VSCodeOption key={ext.id} onClick={() => updateState(ext.id)}>
                                 {ext.name}
                             </VSCodeOption>
                         ))}
@@ -173,12 +173,17 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     </VSCodeButton>
                 </div>
                 <div id='ext-info'>
-                    <span className='info-param-name'>Active:</span>
-                    <span className={'ext-info-badge codicon codicon-' + (selectedExt?.active ? 'pass' : 'warning')}
-                        title={'Extension is ' + (selectedExt?.active ? '' : 'not') + ' active'} />
-                    <span className='info-param-name'>Supported:</span>
-                    <span className={'ext-info-badge codicon codicon-' + (selectedExt?.exportsDiagnosticApi ? 'pass' : 'stop')}
-                        title={'This extension does' + (selectedExt?.exportsDiagnosticApi ? '' : "n't") + ' export diagnostic API.'} />
+                    <span className='info-param-name'>Status:</span>
+                    <span
+                        className={
+                            'ext-info-badge codicon codicon-'
+                            + (!selectedExt?.active ? 'warning' : (!selectedExt?.exportsDiagnosticApi ? 'stop' : 'pass'))
+                        }
+                        title={
+                            'Extension '
+                            + (!selectedExt?.active ? 'is not active' :
+                                (!selectedExt?.exportsDiagnosticApi ? "doesn't export diagnostic API" : 'is active and exports diagnostic API.'))
+                        } />
                     <span className='info-param-name'>Views:</span>
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
                     <span className='info-param-name'>Listeners:</span>
@@ -200,6 +205,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                             columnDefs.map(col => {
                                 return { filter: true, resizable: true, sortable: true, flex: 1, ...col };
                             })}
+                        rowHeight={30}
+                        headerHeight= {30}
                     >
                     </AgGridReact>
                 </div>

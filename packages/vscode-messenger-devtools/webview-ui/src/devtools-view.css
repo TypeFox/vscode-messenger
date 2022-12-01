@@ -1,3 +1,16 @@
+
+.ag-row .ag-header-row {
+  height: 30px;
+}
+
+.ag-cell .ag-header-cell {
+  padding-left: 7px;
+  padding-right: 7px;
+  border-right-color: black;
+  border-right-width: 1px ;
+  border-right-style: solid ;
+}
+
 body {
   --event-table-class: ag-theme-alpine
 }
@@ -5,6 +18,7 @@ body {
 body[data-vscode-theme-kind="vscode-dark"] {
   --event-table-class: ag-theme-alpine-dark
 }
+
 
 main {
   display: flex;
