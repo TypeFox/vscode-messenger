@@ -88,7 +88,9 @@ function listenToNotification(extension: vscode.Extension<unknown>): void {
         };
         listeners.set(extension.id, publicApi.addEventListener(eventListener));
         console.debug(`Attached diagnostic listener to '${extension.id}'`);
-    } else if(listeners.has(extension.id)){
+    }
+    if(!extension.isActive && listeners.has(extension.id)){
+        // clean up if an extension was deactivated
         listeners.get(extension.id)!.dispose();
         listeners.delete(extension.id);
     }
