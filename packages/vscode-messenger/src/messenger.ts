@@ -446,7 +446,9 @@ export class Messenger implements MessengerAPI {
             },
             addEventListener: (listener) => {
                 this.eventListeners.add(listener);
-                return new vscode.Disposable(() => this.eventListeners.delete(listener));
+                return {
+                    dispose: () => this.eventListeners.delete(listener)
+                };
             },
             removeEventListener: (listener) => this.eventListeners.delete(listener)
         };
