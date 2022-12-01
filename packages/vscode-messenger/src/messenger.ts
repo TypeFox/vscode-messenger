@@ -6,10 +6,10 @@
 
 import * as vscode from 'vscode';
 import {
-    HOST_EXTENSION,
-    isMessage, isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant,
-    MessengerAPI, NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage,
-    RequestType, ResponseError, ResponseMessage
+    equalParticipants, HOST_EXTENSION, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
+    isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
+    NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError,
+    ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 
 export class Messenger implements MessengerAPI {
@@ -20,7 +20,7 @@ export class Messenger implements MessengerAPI {
 
     protected readonly viewRegistry: Map<string, ViewData> = new Map();
 
-    protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
+    protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
 
     protected readonly requests: Map<string, RequestData> = new Map();
 
@@ -36,15 +36,15 @@ export class Messenger implements MessengerAPI {
         this.options = { ...defaultOptions, ...options };
     }
 
-    registerWebviewPanel(panel: vscode.WebviewPanel, options: ViewOptions = {}): void {
-        this.registerViewContainer(panel, options);
+    registerWebviewPanel(panel: vscode.WebviewPanel, options: ViewOptions = {}): WebviewIdMessageParticipant {
+        return this.registerViewContainer(panel, options);
     }
 
-    registerWebviewView(view: vscode.WebviewView, options: ViewOptions = {}): void {
-        this.registerViewContainer(view, options);
+    registerWebviewView(view: vscode.WebviewView, options: ViewOptions = {}): WebviewIdMessageParticipant {
+        return this.registerViewContainer(view, options);
     }
 
-    protected registerViewContainer(view: ViewContainer, options: ViewOptions): void {
+    protected registerViewContainer(view: ViewContainer, options: ViewOptions): WebviewIdMessageParticipant {
         // Register typed view
         const viewTypeEntry = this.viewTypeRegistry.get(view.viewType);
         if (viewTypeEntry) {
@@ -85,6 +85,11 @@ export class Messenger implements MessengerAPI {
                     .catch(err => this.log(String(err), 'error'));
             }
         });
+
+        return {
+            type: 'webview',
+            webviewId: viewEntry.id
+        };
     }
 
     /**
@@ -153,23 +158,24 @@ export class Messenger implements MessengerAPI {
      */
     protected async processRequestMessage(msg: RequestMessage, responseCallback: (res: Message) => Thenable<boolean>): Promise<void> {
         this.log(`Host received Request message: ${msg.method} (id ${msg.id})`);
-        const handler = this.handlerRegistry.get(msg.method);
-        if (!handler) {
+        const regs = this.handlerRegistry.get(msg.method);
+        if (!regs) {
             this.log(`Received request with unknown method: ${msg.method}`, 'warn');
-            const response: ResponseMessage = {
-                id: msg.id,
-                sender: HOST_EXTENSION,
-                receiver: msg.sender!,
-                error: {
-                    message: `Unknown method: ${msg.method}`
-                }
-            };
-            await responseCallback(response);
-            return;
+            return this.sendErrorResponse(`Unknown method: ${msg.method}`, msg, responseCallback);
+        }
+
+        const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
+        if (filtered.length === 0) {
+            this.log(`No request handler for ${msg.method} matching sender: ${participantToString(msg.sender)}`, 'warn');
+            return this.sendErrorResponse('No matching request handler', msg, responseCallback);
+        }
+        if (filtered.length > 1) {
+            this.log(`Multiple request handlers for ${msg.method} matching sender: ${participantToString(msg.sender)}`, 'warn');
+            return this.sendErrorResponse('Multiple matching request handlers', msg, responseCallback);
         }
 
         try {
-            const result = await handler(msg.params, msg.sender!);
+            const result = await filtered[0].handler(msg.params, msg.sender!);
             const response: ResponseMessage = {
                 id: msg.id,
                 sender: HOST_EXTENSION,
@@ -181,16 +187,20 @@ export class Messenger implements MessengerAPI {
                 this.log(`Failed to send result message: ${participantToString(response.receiver)}`, 'error');
             }
         } catch (error) {
-            const response: ResponseMessage = {
-                id: msg.id,
-                sender: HOST_EXTENSION,
-                receiver: msg.sender!,
-                error: this.createResponseError(error)
-            };
-            const posted = await responseCallback(response);
-            if (!posted) {
-                this.log(`Failed to send error message: ${participantToString(response.receiver)}`, 'error');
-            }
+            this.sendErrorResponse(this.createResponseError(error), msg, responseCallback);
+        }
+    }
+
+    protected async sendErrorResponse(error: ResponseError | string, msg: RequestMessage, responseCallback: (res: Message) => Thenable<boolean>): Promise<void> {
+        const response: ResponseMessage = {
+            id: msg.id,
+            sender: HOST_EXTENSION,
+            receiver: msg.sender!,
+            error: typeof error === 'string' ? { message: error } : error
+        };
+        const posted = await responseCallback(response);
+        if (!posted) {
+            this.log(`Failed to send error message: ${participantToString(response.receiver)}`, 'error');
         }
     }
 
@@ -209,9 +219,12 @@ export class Messenger implements MessengerAPI {
      */
     protected async processNotificationMessage(msg: NotificationMessage): Promise<void> {
         this.log(`Host received Notification message: ${msg.method}`);
-        const handler = this.handlerRegistry.get(msg.method);
-        if (handler) {
-            await handler(msg.params, msg.sender!);
+        const regs = this.handlerRegistry.get(msg.method);
+        if (regs) {
+            const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
+            if (filtered.length > 0) {
+                await Promise.all(filtered.map(reg => reg.handler(msg.params, msg.sender!)));
+            }
         } else if (msg.receiver.type !== 'broadcast') {
             this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
         }
@@ -231,22 +244,51 @@ export class Messenger implements MessengerAPI {
             }
             this.requests.delete(msg.id);
         } else {
-            this.log(`Received response for untracked message id: ${msg.id} (participant: ${participantToString(msg.sender!)})`, 'warn');
+            this.log(`Received response for untracked message id: ${msg.id} (participant: ${participantToString(msg.sender)})`, 'warn');
         }
     }
 
-    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void {
-        if (this.handlerRegistry.has(type.method)) {
-            this.log(`A request handler is already registered for method ${type.method} and will be overridden.`, 'warn');
-        }
-        this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
+        return this.registerHandler(type, handler, options);
     }
 
-    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void {
-        if (this.handlerRegistry.has(type.method)) {
-            this.log(`A notification handler is already registered for method ${type.method} and will be overridden.`, 'warn');
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
+        return this.registerHandler(type, handler, options);
+    }
+
+    protected registerHandler(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        type: RequestType<any, any> | NotificationType<any>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        handler: RequestHandler<any, any> | NotificationHandler<any>,
+        options: { sender?: MessageParticipant }
+    ): vscode.Disposable {
+        let handlers = this.handlerRegistry.get(type.method);
+        if (handlers && this.options.uniqueHandlers) {
+            throw new Error(`A message handler is already registered for method ${type.method}.`);
         }
-        this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
+        if (!handlers) {
+            handlers = [];
+            this.handlerRegistry.set(type.method, handlers);
+        }
+        const registration: HandlerRegistration = { handler, sender: options.sender };
+        handlers.push(registration);
+
+        // Create a disposable that removes the message handler from the registry
+        return {
+            dispose: () => {
+                const handlers = this.handlerRegistry.get(type.method);
+                if (handlers) {
+                    const index = handlers.indexOf(registration);
+                    if (index >= 0) {
+                        handlers.splice(index, 1);
+                        if (handlers.length === 0) {
+                            this.handlerRegistry.delete(type.method);
+                        }
+                    }
+                }
+            }
+        };
     }
 
     async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
@@ -365,7 +407,7 @@ export class Messenger implements MessengerAPI {
         if (this.eventListeners.size > 0) {
             const event: MessengerEvent = {
                 type: 'unknown',
-                sender: msg.sender ? participantToString(msg.sender) : undefined,
+                sender: participantToString(msg.sender),
                 receiver: participantToString(msg.receiver),
                 size: 0
             };
@@ -437,6 +479,8 @@ export type ViewContainer = vscode.WebviewPanel | vscode.WebviewView
 export interface MessengerOptions {
     /** A message is ignored if the receiver is a webview that is currently hidden (not visible). */
     ignoreHiddenViews?: boolean;
+    /** Enforces message handlers to be unique for each message type. */
+    uniqueHandlers?: boolean;
     /** Whether to log any debug-level messages to the console. */
     debugLog?: boolean;
 }
@@ -461,6 +505,11 @@ export interface ViewOptions {
     broadcastMethods?: string[]
 }
 
+export interface HandlerRegistration {
+    handler: RequestHandler<unknown, unknown> | NotificationHandler<unknown>
+    sender: MessageParticipant | undefined
+}
+
 class IdProvider {
 
     private counter = 0;
@@ -474,7 +523,10 @@ class IdProvider {
     }
 }
 
-function participantToString(participant: MessageParticipant): string {
+function participantToString(participant: MessageParticipant | undefined): string {
+    if (!participant) {
+        return 'undefined';
+    }
     switch (participant.type) {
         case 'extension':
             return 'host extension';

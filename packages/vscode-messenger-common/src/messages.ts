@@ -31,14 +31,18 @@ export interface WebviewIdMessageParticipant {
     webviewId: string
 }
 
+export function isWebviewIdMessageParticipant(participant: MessageParticipant): participant is WebviewIdMessageParticipant {
+    return participant.type === 'webview' && typeof (participant as WebviewIdMessageParticipant).webviewId === 'string';
+}
+
 export interface WebviewTypeMessageParticipant {
     type: 'webview'
     /** Webview panel type or webview view type. */
     webviewType: string
 }
 
-export function isWebviewIdMessageParticipant(participant: MessageParticipant): participant is WebviewIdMessageParticipant {
-    return !!(participant as WebviewIdMessageParticipant).webviewId;
+export function isWebviewTypeMessageParticipant(participant: MessageParticipant): participant is WebviewTypeMessageParticipant {
+    return participant.type === 'webview' && typeof (participant as WebviewTypeMessageParticipant).webviewType === 'string';
 }
 
 /**
@@ -50,6 +54,21 @@ export interface BroadcastMessageParticipant {
 }
 
 export const BROADCAST: Readonly<BroadcastMessageParticipant> = { type: 'broadcast' };
+
+export function equalParticipants(p1: MessageParticipant, p2: MessageParticipant): boolean {
+    if (p1.type === 'extension' && p2.type === 'extension') {
+        return p1.extensionId === p2.extensionId;
+    }
+    if (p1.type === 'webview' && p2.type === 'webview') {
+        if (isWebviewIdMessageParticipant(p1) && isWebviewIdMessageParticipant(p2)) {
+            return p1.webviewId === p2.webviewId;
+        }
+        if (isWebviewTypeMessageParticipant(p1) && isWebviewTypeMessageParticipant(p2)) {
+            return p1.webviewType === p2.webviewType;
+        }
+    }
+    return p1.type === p2.type;
+}
 
 export interface Message {
     /** The receiver of this message. */
@@ -140,7 +159,7 @@ export type NotificationType<P> = { method: string };
 /**
  * Function for handling incoming notifications.
  */
-export type NotificationHandler<P> = (params: P) => void | Promise<void>;
+export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => void | Promise<void>;
 
 /**
  * Base API for Messenger implementations.
