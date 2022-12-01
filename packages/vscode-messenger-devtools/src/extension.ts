@@ -6,16 +6,16 @@
 
 import * as vscode from 'vscode';
 import { ExtensionInfo, isMessengerDiagnostic, Messenger, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
-import { MessagesPanel } from './panels/MessagesPanel';
+import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
 
 const msg = new Messenger({ debugLog: true });
-const listeners = new Map<string, (event: MessengerEvent) => void>();
+const listeners = new Map<string, vscode.Disposable>();
 
 export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(vscode.commands.registerCommand('vscode-messenger-devtools.activate', () => {
         const panel = MessagesPanel.render(context.extensionUri);
-        msg.registerWebviewPanel(panel, { broadcastMethods: ['pushData'] });
+        msg.registerWebviewPanel(panel);
     }));
 
     msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
@@ -41,13 +41,14 @@ export function activate(context: vscode.ExtensionContext) {
     setImmediate(() => {
         listenToNotifications(compatibleExtensions());
     });
-    console.log('Messenger Devtools activated.');
+    console.debug('Messenger Devtools activated.');
     return msg.diagnosticApi();
 }
 
 export function deactivate(): void {
+    listeners.forEach(listener => listener.dispose());
     listeners.clear();
-    console.log('Messenger Devtools deactivated.');
+    console.debug('Messenger Devtools deactivated.');
 }
 
 function diagnosticApi(ext: vscode.Extension<unknown>): MessengerDiagnostic | undefined {
@@ -78,16 +79,18 @@ function listenToNotifications(messengerExts: Array<vscode.Extension<unknown>>):
 }
 
 function listenToNotification(extension: vscode.Extension<unknown>): void {
-    console.log(`Extension '${extension.id}' uses vscode-messenger. Extension active: ${extension.isActive}`);
+    console.debug(`Extension '${extension.id}' uses vscode-messenger. Extension active: ${extension.isActive}`);
     const publicApi = diagnosticApi(extension);
     if (publicApi && !listeners.has(extension.id)) {
         const eventListener = (event: MessengerEvent) => {
             if (event.method !== 'pushData')
-                msg.sendNotification({ method: 'pushData' }, { type: 'broadcast' }, { extension: extension.id, event });
+                msg.sendNotification({ method: 'pushData' }, { type: 'webview', webviewType: WEBVIEW_TYPE }, { extension: extension.id, event });
         };
-        publicApi.addEventListener(eventListener);
-        listeners.set(extension.id, eventListener);
+        listeners.set(extension.id, publicApi.addEventListener(eventListener));
         console.debug(`Attached diagnostic listener to '${extension.id}'`);
+    } else if(listeners.has(extension.id)){
+        listeners.get(extension.id)!.dispose();
+        listeners.delete(extension.id);
     }
 
 }

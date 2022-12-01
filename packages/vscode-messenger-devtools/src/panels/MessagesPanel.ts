@@ -1,15 +1,9 @@
-import { Disposable, Webview, WebviewPanel, window, Uri, ViewColumn } from 'vscode';
-import { getUri } from '../utilities/getUri';
+import { Disposable, Uri, ViewColumn, Webview, WebviewPanel, window } from 'vscode';
+
+export const WEBVIEW_TYPE = 'messengerDevtool';
 
 /**
- * This class manages the state and behavior of HelloWorld webview panels.
- *
- * It contains all the data and methods for:
- *
- * - Creating and rendering HelloWorld webview panels
- * - Properly cleaning up and disposing of webview resources when the panel is closed
- * - Setting the HTML (and by proxy CSS/JavaScript) content of the webview panel
- * - Setting message listeners so data can be passed between the webview and extension
+ * This class manages the state and behavior of Devtool webview.
  */
 export class MessagesPanel {
     public static currentPanel: MessagesPanel | undefined;
@@ -17,8 +11,6 @@ export class MessagesPanel {
     private _disposables: Disposable[] = [];
 
     /**
-   * The HelloWorldPanel class private constructor (called only from the render method).
-   *
    * @param panel A reference to the webview panel
    * @param extensionUri The URI of the directory containing the extension
    */
@@ -48,7 +40,7 @@ export class MessagesPanel {
             // If a webview panel does not already exist create and show a new one
             const panel = window.createWebviewPanel(
                 // Panel view type
-                'messengerDevtool',
+                WEBVIEW_TYPE,
                 // Panel title
                 'Messenger Tools',
                 // The editor column the panel should be displayed in
@@ -71,7 +63,7 @@ export class MessagesPanel {
     public dispose() {
         MessagesPanel.currentPanel = undefined;
         // Dispose of the current webview panel
-        if(!this) {
+        if (!this) {
             return;
         }
         this._panel.dispose();
@@ -97,7 +89,7 @@ export class MessagesPanel {
    * rendered within the webview panel
    */
     private _getWebviewContent(webview: Webview, extensionUri: Uri) {
-    // The CSS file from the React build output
+        // The CSS file from the React build output
         const stylesUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'index.css']);
         // The JS file from the React build output
         const scriptUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'index.js']);
@@ -121,3 +113,19 @@ export class MessagesPanel {
     `;
     }
 }
+
+/**
+ * A helper function which will get the webview URI of a given file or resource.
+ *
+ * @remarks This URI can be used within a webview's HTML as a link to the
+ * given file/resource.
+ *
+ * @param webview A reference to the extension webview
+ * @param extensionUri The URI of the directory containing the extension
+ * @param pathList An array of strings representing the path to a file/resource
+ * @returns A URI pointing to the file/resource
+ */
+export function getUri(webview: Webview, extensionUri: Uri, pathList: string[]) {
+    return webview.asWebviewUri(Uri.joinPath(extensionUri, ...pathList));
+}
+
