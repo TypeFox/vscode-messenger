@@ -20,6 +20,8 @@ export class Messenger implements MessengerAPI {
 
     protected readonly options: MessengerOptions;
 
+    private started = false;
+
     constructor(vscode?: VsCodeApi, options?: MessengerOptions) {
         this.vscode = vscode ?? acquireVsCodeApi();
         const defaultOptions: MessengerOptions = {
@@ -39,12 +41,16 @@ export class Messenger implements MessengerAPI {
     }
 
     start(): void {
+        if (this.started) {
+            return;
+        }
         window.addEventListener('message', (event: { data: unknown }) => {
             if (isMessage(event.data)) {
                 this.processMessage(event.data)
                     .catch(err => this.log(String(err), 'error'));
             }
         });
+        this.started = true;
     }
 
     protected async processMessage(msg: Message): Promise<void> {
