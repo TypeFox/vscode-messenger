@@ -57,6 +57,7 @@
             "outFiles": [
                 "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui/build/**/*.js",
                 "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
+                "${workspaceFolder}/packages/vscode-messenger/lib/**/*.js",
             ],
             "preLaunchTask": "${defaultBuildTask}"
         }

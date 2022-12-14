@@ -3,7 +3,7 @@
 	"version": "0.4.1",
 	"publisher": "dhuebner",
 	"displayName": "VS Code Messenger Devtools",
-	"description": "Helpful message communications visualization for VS Code.",
+	"description": "Message communication visualization for VS Code.",
 	"keywords": [
 		"vscode",
 		"webview",
@@ -15,7 +15,6 @@
 	},
 	"categories": [
 		"Visualization",
-		"Debuggers",
 		"Other"
 	],
 	"activationEvents": [
@@ -65,7 +64,7 @@
 	},
 	"dependencies": {
 		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "^0.4.2"
+		"vscode-messenger": "^0.4.3"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.70.0",

@@ -57,15 +57,17 @@ export class Messenger implements MessengerAPI {
         const viewEntry = {
             id: this.idProvider.getWebviewId(view),
             container: view,
-            options
+            options,
         };
         this.viewRegistry.set(viewEntry.id, viewEntry);
 
+        // Preserve view data (view.viewType), because after a view is disposed it's data can not be accessed.
+        const viewType = view.viewType;
         view.onDidDispose(() => {
             this.viewRegistry.delete(viewEntry.id);
-            const removed = this.viewTypeRegistry.get(view.viewType)?.delete(view);
+            const removed = this.viewTypeRegistry.get(viewType)?.delete(view);
             if (!removed) {
-                this.log(`Attempt to remove non-existing registry entry for View: ${view.title} (type ${view.viewType})`, 'warn');
+                this.log(`Attempt to remove non-existing registry entry for View: ${viewEntry.id} (type ${viewType})`, 'warn');
             }
         });
 
