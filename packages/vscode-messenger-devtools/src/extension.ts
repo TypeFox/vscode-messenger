@@ -13,7 +13,7 @@ const listeners = new Map<string, vscode.Disposable>();
 
 export function activate(context: vscode.ExtensionContext) {
 
-    context.subscriptions.push(vscode.commands.registerCommand('vscode-messenger-devtools.activate', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('vscode-messenger-devtools.activate', (..._args) => {
         const panel = MessagesPanel.render(context.extensionUri);
         msg.registerWebviewPanel(panel);
         const disposable = msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
@@ -31,7 +31,9 @@ export function activate(context: vscode.ExtensionContext) {
                 } as ExtensionData;
             });
         });
-        panel.onDidDispose(() => disposable.dispose());
+        panel.onDidDispose(() =>
+            disposable.dispose()
+        );
     }));
 
     context.subscriptions.push(vscode.extensions.onDidChange(_e => {

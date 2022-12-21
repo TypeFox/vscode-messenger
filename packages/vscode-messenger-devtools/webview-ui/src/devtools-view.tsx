@@ -164,10 +164,13 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                             if (chartsDiv) {
                                 if (chartsDiv.style.display === 'none') {
                                     chartsDiv.style.display = 'flex';
-                                    //optionCount.animation = false;
+                                    chartsDiv.style.visibility = 'visible';
+                                    optionCount.animation = true; // triggers chats resize
+                                } else {
+                                    chartsDiv.style.display = 'none';
+                                    chartsDiv.style.visibility = 'hidden';
+                                    optionCount.animation = false;
                                 }
-                                else chartsDiv.style.display = 'none';
-
                             }
                         }
                     }>
