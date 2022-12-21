@@ -16,23 +16,23 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('vscode-messenger-devtools.activate', () => {
         const panel = MessagesPanel.render(context.extensionUri);
         msg.registerWebviewPanel(panel);
-    }));
-
-    msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
-        return compatibleExtensions().map(ext => {
-            if (params?.refresh) {
-                listenToNotification(ext);
-            }
-            const supportedApi = ext.isActive && isMessengerDiagnostic(ext.exports);
-            return {
-                id: ext.id,
-                name: ext.packageJSON?.displayName ?? ext.id,
-                active: ext.isActive,
-                exportsDiagnosticApi: supportedApi,
-                info: supportedApi ? getExtensionInfo(ext) : undefined
-            } as ExtensionData;
+        const disposable = msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
+            return compatibleExtensions().map(ext => {
+                if (params?.refresh) {
+                    listenToNotification(ext);
+                }
+                const supportedApi = ext.isActive && isMessengerDiagnostic(ext.exports);
+                return {
+                    id: ext.id,
+                    name: ext.packageJSON?.displayName ?? ext.id,
+                    active: ext.isActive,
+                    exportsDiagnosticApi: supportedApi,
+                    info: supportedApi ? getExtensionInfo(ext) : undefined
+                } as ExtensionData;
+            });
         });
-    });
+        panel.onDidDispose(() => disposable.dispose());
+    }));
 
     context.subscriptions.push(vscode.extensions.onDidChange(_e => {
         listenToNotifications(compatibleExtensions());
@@ -89,7 +89,7 @@ function listenToNotification(extension: vscode.Extension<unknown>): void {
         listeners.set(extension.id, publicApi.addEventListener(eventListener));
         console.debug(`Attached diagnostic listener to '${extension.id}'`);
     }
-    if(!extension.isActive && listeners.has(extension.id)){
+    if (!extension.isActive && listeners.has(extension.id)) {
         // clean up if an extension was deactivated
         listeners.get(extension.id)!.dispose();
         listeners.delete(extension.id);

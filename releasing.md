@@ -13,13 +13,13 @@ npm run build && npm run publish:latest
 #### Extension
 ```
 cd ../vscode-messenger
-npm install && npm run build && npm run publish:latest
+npm run build && npm run publish:latest
 ```
 
 #### Webview
 ```
 cd ../vscode-messenger-webview
-npm install && npm run build && npm run publish:latest
+npm run build && npm run publish:latest
 ```
 
 #### Devtools extension build

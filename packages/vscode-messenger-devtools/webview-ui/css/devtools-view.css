@@ -1,6 +1,6 @@
 
 .ag-row .ag-header-row {
-  height: 30px;
+  height: 25px;
 }
 
 .ag-cell .ag-header-cell {
@@ -52,6 +52,11 @@ body[data-vscode-theme-kind="vscode-dark"] {
 
 .refresh-button {
   margin-left: 4px;
+  margin-top: auto;
+}
+
+.toggle-charts-button {
+  margin-left: auto;
   margin-top: auto;
 }
 

@@ -27,12 +27,14 @@ interface ExtensionData {
 interface DevtoolsComponentState {
     selectedExtension: string
     datasetSrc: Map<string, ExtensionData>
+    chartsShown: boolean
 }
 
 function storeState(uiState: DevtoolsComponentState): void {
     vscodeApi.setState({
         selectedExtension: uiState.selectedExtension,
-        datasetSrc: [...uiState.datasetSrc]
+        datasetSrc: [...uiState.datasetSrc],
+        chartsShown: uiState.chartsShown
     });
 }
 
@@ -41,7 +43,8 @@ function restoreState(): DevtoolsComponentState | undefined {
     if (stored && Array.isArray(stored.datasetSrc)) {
         return {
             selectedExtension: stored.selectedExt,
-            datasetSrc: new Map(stored.datasetSrc)
+            datasetSrc: new Map(stored.datasetSrc),
+            chartsShown: stored.chartsShown
         };
     }
     return undefined;
@@ -59,8 +62,8 @@ const columnDefs: ColDef[] = [
     { field: 'sender', width: 180 },
     { field: 'receiver', width: 180 },
     { field: 'method', width: 135 },
+    { field: 'size', headerName: 'Size (chars)', width: 135 },
     { field: 'id' },
-    { field: 'size' , headerName: 'Size (chars)'},
     { field: 'error' },
 ];
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
@@ -73,7 +76,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const storedState = restoreState();
         this.state = {
             selectedExtension: storedState?.selectedExtension ?? '',
-            datasetSrc: new Map(storedState?.datasetSrc) ?? new Map()
+            datasetSrc: new Map(storedState?.datasetSrc) ?? new Map(),
+            chartsShown: storedState?.chartsShown ?? true
         };
         this.refObj = React.createRef();
         this.messenger = new Messenger(vscodeApi, { debugLog: true });
@@ -99,12 +103,14 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     updateState(newState: DevtoolsComponentState, refreshTable: boolean) {
-        this.setState(newState);
-        storeState(this.state);
-        if (refreshTable && this.refObj?.current) {
-            // refresh table
-            this.refObj.current.api.setRowData(this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? []);
-        }
+        this.setState(newState, () => {
+            // Callback after `this.state`was updated
+            storeState(this.state);
+            if (refreshTable && this.refObj?.current) {
+                // refresh table
+                this.refObj.current.api.setRowData(this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? []);
+            }
+        });
     }
     async fillExtensionsList(refresh: boolean) {
         const extensions = await this.messenger.sendRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, HOST_EXTENSION, { refresh });
@@ -150,6 +156,22 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     </VSCodeDropdown>
                     <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh' onClick={() => this.fillExtensionsList(true)}>
                         <span className='codicon codicon-refresh' title='Refresh' />
+                    </VSCodeButton>
+                    <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={
+                        () => {
+                            this.updateState({ ...this.state, chartsShown: !this.state.chartsShown }, false);
+                            const chartsDiv = document.getElementById('charts');
+                            if (chartsDiv) {
+                                if (chartsDiv.style.display === 'none') {
+                                    chartsDiv.style.display = 'flex';
+                                    //optionCount.animation = false;
+                                }
+                                else chartsDiv.style.display = 'none';
+
+                            }
+                        }
+                    }>
+                        <span className='codicon codicon-graph' title='Toggle Charts' />
                     </VSCodeButton>
                 </div>
                 <div id='ext-info'>
@@ -199,7 +221,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     >
                     </AgGridReact>
                 </div>
-                <div id='charts'>
+                <div id='charts' style={{ display: this.state.chartsShown ? 'flex' : 'none' }}>
                     <ReactECharts option={optionCount} />
                     <ReactECharts option={optionSize} />
                 </div>
