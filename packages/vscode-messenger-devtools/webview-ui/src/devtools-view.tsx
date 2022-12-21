@@ -21,7 +21,10 @@ interface ExtensionData {
     active: boolean
     exportsDiagnosticApi: boolean
     info?: ExtensionInfo
-    events: MessengerEvent[]
+    events: ExtendedMessengerEvent[]
+}
+interface ExtendedMessengerEvent extends MessengerEvent {
+    timeAfterRequest?: number
 }
 
 interface DevtoolsComponentState {
@@ -55,7 +58,7 @@ const columnDefs: ColDef[] = [
         field: 'type',
         initialWidth: 110,
         cellRenderer: (params: any) => {
-            const rowType = params.data.type??'unknown';
+            const rowType = params.data.type ?? 'unknown';
             const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
             return <div className={'rowType_' + rowType} style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
         }
@@ -63,8 +66,29 @@ const columnDefs: ColDef[] = [
     { field: 'sender', initialWidth: 180 },
     { field: 'receiver', initialWidth: 180 },
     { field: 'method', initialWidth: 135 },
-    { field: 'size', headerName: 'Size (chars)', initialWidth: 135 },
+    {
+        field: 'size', headerName: 'Size (Time)', initialWidth: 135,
+        cellRenderer: (params: any) => {
+            const event = (params.data as ExtendedMessengerEvent);
+            if(event.type === 'response' && typeof event.timeAfterRequest === 'number') {
+                return `${ event.size} (${event.timeAfterRequest}ms)`;
+            }
+            return event.size;
+
+        }
+    },
     { field: 'id' },
+    {
+        field: 'timestamp', cellRenderer: (params: any) => {
+            const time = params.data.timestamp;
+            if (typeof time === 'number') {
+                const date = new Date(time);
+                const prependZero = (n: number) => ('0' + n).slice(-2);
+                return `${prependZero(date.getHours())}:${prependZero(date.getMinutes())}:${prependZero(date.getSeconds())}-${('00' + date.getMilliseconds()).slice(-3)}`;
+            }
+            return time;
+        }
+    },
     { field: 'error' },
 ];
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
@@ -78,11 +102,11 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         this.state = {
             selectedExtension: storedState?.selectedExtension ?? '',
             datasetSrc: new Map(storedState?.datasetSrc) ?? new Map(),
-            chartsShown: storedState?.chartsShown ?? true
+            chartsShown: storedState?.chartsShown ?? false
         };
         this.refObj = React.createRef();
         this.messenger = new Messenger(vscodeApi, { debugLog: true });
-        this.messenger.onNotification<{ extension: string, event: MessengerEvent }>({ method: 'pushData' }, e => this.handleDataPush(e));
+        this.messenger.onNotification<{ extension: string, event: ExtendedMessengerEvent }>({ method: 'pushData' }, e => this.handleDataPush(e));
         this.messenger.start();
         this.fillExtensionsList(false).then(() => {
             if (this.state.selectedExtension === '' && this.state.datasetSrc.size > 0) {
@@ -94,11 +118,18 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         });
     }
 
-    private handleDataPush(dataEvent: { extension: string, event: MessengerEvent }): void {
+    private handleDataPush(dataEvent: { extension: string, event: ExtendedMessengerEvent }): void {
         if (!this.state.datasetSrc.has(dataEvent.extension)) {
             this.updateExtensionData({ id: dataEvent.extension, name: '', active: true, exportsDiagnosticApi: true, events: [] });
         }
         const extensionData = this.state.datasetSrc.get(dataEvent.extension)!;
+        if (dataEvent.event.type === 'response' && dataEvent.event.timestamp) {
+            // Take max 200 entries to look-up
+            const request = extensionData.events.slice(0, 200).find(event => event.type === 'request' && event.id === dataEvent.event.id);
+            if (request && request.timestamp) {
+                dataEvent.event.timeAfterRequest = dataEvent.event.timestamp - request.timestamp;
+            }
+        }
         extensionData.events.unshift(dataEvent.event);
         this.updateState(this.state, this.state.selectedExtension === dataEvent.extension);
     }
@@ -217,11 +248,13 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                                         }
                                         return null;
                                     },
+                                    tooltipField: col.field,
                                     ...col
                                 };
                             })}
                         rowHeight={25}
                         headerHeight={28}
+                        enableBrowserTooltips={true}
                     >
                     </AgGridReact>
                 </div>

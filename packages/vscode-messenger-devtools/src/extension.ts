@@ -10,30 +10,38 @@ import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
 
 const msg = new Messenger({ debugLog: true });
 const listeners = new Map<string, vscode.Disposable>();
+let panel: vscode.WebviewPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(vscode.commands.registerCommand('vscode-messenger-devtools.activate', (..._args) => {
-        const panel = MessagesPanel.render(context.extensionUri);
-        msg.registerWebviewPanel(panel);
-        const disposable = msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
-            return compatibleExtensions().map(ext => {
-                if (params?.refresh) {
-                    listenToNotification(ext);
-                }
-                const supportedApi = ext.isActive && isMessengerDiagnostic(ext.exports);
-                return {
-                    id: ext.id,
-                    name: ext.packageJSON?.displayName ?? ext.id,
-                    active: ext.isActive,
-                    exportsDiagnosticApi: supportedApi,
-                    info: supportedApi ? getExtensionInfo(ext) : undefined
-                } as ExtensionData;
+        if (!panel) {
+            panel = MessagesPanel.render(context.extensionUri);
+            msg.registerWebviewPanel(panel);
+            const disposable = msg.onRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, (params, _sender) => {
+                return compatibleExtensions().map(ext => {
+                    if (params?.refresh) {
+                        listenToNotification(ext);
+                    }
+                    const supportedApi = ext.isActive && isMessengerDiagnostic(ext.exports);
+                    return {
+                        id: ext.id,
+                        name: ext.packageJSON?.displayName ?? ext.id,
+                        active: ext.isActive,
+                        exportsDiagnosticApi: supportedApi,
+                        info: supportedApi ? getExtensionInfo(ext) : undefined
+                    } as ExtensionData;
+                });
             });
-        });
-        panel.onDidDispose(() =>
-            disposable.dispose()
-        );
+            panel.onDidDispose(() => {
+                disposable.dispose();
+                panel = undefined;
+            }
+            );
+        } else {
+            panel.reveal();
+        }
+
     }));
 
     context.subscriptions.push(vscode.extensions.onDidChange(_e => {
@@ -50,6 +58,8 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate(): void {
     listeners.forEach(listener => listener.dispose());
     listeners.clear();
+    panel?.dispose();
+    panel = undefined;
     console.debug('Messenger Devtools deactivated.');
 }
 

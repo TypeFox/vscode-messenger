@@ -411,7 +411,8 @@ export class Messenger implements MessengerAPI {
                 type: 'unknown',
                 sender: participantToString(msg.sender),
                 receiver: participantToString(msg.receiver),
-                size: 0
+                size: 0,
+                timestamp: Date.now()
             };
             if (isRequestMessage(msg)) {
                 event.type = 'request';
@@ -612,6 +613,7 @@ export interface MessengerEvent {
     receiver: string,
     method?: string | undefined,
     error?: string | undefined,
-    size: number
+    size: number,
+    timestamp: number
 }
 
