@@ -1,6 +1,21 @@
 
 .ag-row .ag-header-row {
-  height: 25px;
+  font-size: var(--vscode-font-size);
+}
+div.ag-theme-alpine div.ag-row {
+  font-size: var(--vscode-font-size) !important;
+  color: var(--vscode-foreground) !important;
+}
+div.ag-theme-alpine-dark div.ag-row {
+  font-size: var(--vscode-font-size) !important;
+  color: var(--vscode-foreground) !important;
+}
+
+div.ag-theme-alpine div.ag-header-row {
+  color: var(--vscode-foreground) !important;
+}
+div.ag-theme-alpine-dark div.ag-header-row {
+  color: var(--vscode-foreground) !important;
 }
 
 .ag-cell .ag-header-cell {
@@ -82,7 +97,20 @@ span.table-cell.codicon.codicon-stop {
   align-self: center;
   padding-left: 10px;
 }
-
 span.ext-info-badge.codicon.codicon-pass {
   color: green;
 }
+/* Table row colors*/
+
+div.rowType_request {
+  color: var(--vscode-textLink-foreground) /* blue */
+}
+
+div.rowType_response {
+  color: var(--vscode-editorGutter-addedBackground) /* green */
+}
+
+div.rowType_notification {
+  color: var(--vscode-editorMarkerNavigationWarning-background) /* orange/braun */
+}
+

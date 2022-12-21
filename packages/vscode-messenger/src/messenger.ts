@@ -426,7 +426,12 @@ export class Messenger implements MessengerAPI {
                 event.type = 'response';
                 event.id = msg.id;
                 event.size = JSON.stringify(msg.result)?.length ?? 0;
-                event.error = msg.error?.message;
+                if(msg.error) {
+                    event.error = msg.error?.message ? msg.error?.message : 'No error message provided';
+                    if(msg.error.data) {
+                        event.size += JSON.stringify(msg.error.data)?.length ?? 0;
+                    }
+                }
             } else {
                 event.error = `Unknown message to ${msg.receiver}`;
             }

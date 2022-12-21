@@ -53,16 +53,17 @@ function restoreState(): DevtoolsComponentState | undefined {
 const columnDefs: ColDef[] = [
     {
         field: 'type',
-        width: 110,
+        initialWidth: 110,
         cellRenderer: (params: any) => {
+            const rowType = params.data.type??'unknown';
             const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
-            return <div style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
+            return <div className={'rowType_' + rowType} style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
         }
     },
-    { field: 'sender', width: 180 },
-    { field: 'receiver', width: 180 },
-    { field: 'method', width: 135 },
-    { field: 'size', headerName: 'Size (chars)', width: 135 },
+    { field: 'sender', initialWidth: 180 },
+    { field: 'receiver', initialWidth: 180 },
+    { field: 'method', initialWidth: 135 },
+    { field: 'size', headerName: 'Size (chars)', initialWidth: 135 },
     { field: 'id' },
     { field: 'error' },
 ];
@@ -219,8 +220,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                                     ...col
                                 };
                             })}
-                        rowHeight={30}
-                        headerHeight={30}
+                        rowHeight={25}
+                        headerHeight={28}
                     >
                     </AgGridReact>
                 </div>
