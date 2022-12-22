@@ -42,10 +42,10 @@ function storeState(uiState: DevtoolsComponentState): void {
 }
 
 function restoreState(): DevtoolsComponentState | undefined {
-    const stored = vscodeApi.getState() as any;
+    const stored = vscodeApi.getState() as DevtoolsComponentState;
     if (stored && Array.isArray(stored.datasetSrc)) {
         return {
-            selectedExtension: stored.selectedExt,
+            selectedExtension: stored.selectedExtension,
             datasetSrc: new Map(stored.datasetSrc),
             chartsShown: stored.chartsShown
         };
@@ -70,8 +70,8 @@ const columnDefs: ColDef[] = [
         field: 'size', headerName: 'Size (Time)', initialWidth: 135,
         cellRenderer: (params: any) => {
             const event = (params.data as ExtendedMessengerEvent);
-            if(event.type === 'response' && typeof event.timeAfterRequest === 'number') {
-                return `${ event.size} (${event.timeAfterRequest}ms)`;
+            if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
+                return `${event.size} (${event.timeAfterRequest}ms)`;
             }
             return event.size;
 
@@ -79,7 +79,9 @@ const columnDefs: ColDef[] = [
     },
     { field: 'id' },
     {
-        field: 'timestamp', cellRenderer: (params: any) => {
+        field: 'timestamp',
+        initialWidth: 135,
+        cellRenderer: (params: any) => {
             const time = params.data.timestamp;
             if (typeof time === 'number') {
                 const date = new Date(time);
@@ -140,10 +142,18 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             storeState(this.state);
             if (refreshTable && this.refObj?.current) {
                 // refresh table
-                this.refObj.current.api.setRowData(this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? []);
+                this.reloadTableData(this.state.datasetSrc.get(this.state.selectedExtension)?.events);
             }
         });
     }
+
+    protected reloadTableData(rowData: MessengerEvent[] | undefined): void {
+        if (this.refObj?.current) {
+            // refresh table
+            this.refObj.current.api.setRowData(rowData ?? []);
+        }
+    }
+
     async fillExtensionsList(refresh: boolean) {
         const extensions = await this.messenger.sendRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, HOST_EXTENSION, { refresh });
         extensions.forEach(ext => this.updateExtensionData(ext));
@@ -171,17 +181,13 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
         const updateState = (selectedId: string) => {
             this.updateState({ ...this.state, selectedExtension: selectedId }, true);
-            if (this.refObj?.current) {
-                // refresh table
-                this.refObj.current.api.setRowData(this.state.datasetSrc.get(selectedId)?.events ?? []);
-            }
         };
         return (
             <>
                 <div id='header'>
-                    <VSCodeDropdown>
+                    <VSCodeDropdown value={this.state.selectedExtension} title='List of extensions using vscode-messenger.'>
                         {Array.from(this.state.datasetSrc.values()).map((ext) => (
-                            <VSCodeOption key={ext.id} onClick={() => updateState(ext.id)}>
+                            <VSCodeOption key={ext.id} value={ext.id} onClick={() => updateState(ext.id)}>
                                 {ext.name}
                             </VSCodeOption>
                         ))}

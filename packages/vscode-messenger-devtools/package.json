@@ -1,6 +1,6 @@
 {
 	"name": "vscode-messenger-devtools",
-	"version": "0.4.1",
+	"version": "0.4.3",
 	"publisher": "dhuebner",
 	"displayName": "VS Code Messenger Devtools",
 	"description": "Message communication visualization for VS Code.",
@@ -25,15 +25,6 @@
 	"types": "./lib/devtool-ext.d.ts",
 	"license": "MIT",
 	"contributes": {
-		"viewsContainers": {
-			"panel": [
-				{
-					"id": "vscode-messenger-devtools_viewContainer",
-					"title": "Messenger",
-					"icon": "${circuit-board}"
-				}
-			]
-		},
 		"views": {
 			"vscode-messenger-devtools_viewContainer": [
 				{

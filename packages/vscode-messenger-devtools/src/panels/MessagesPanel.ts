@@ -45,11 +45,12 @@ export class MessagesPanel {
                 'Messenger Tools',
                 // The editor column the panel should be displayed in
                 ViewColumn.One,
-                // Extra panel configurations
                 {
-                    // Enable JavaScript in the webview
                     enableScripts: true,
-                }
+                    // retain content when hidden, faster re-load
+                    retainContextWhenHidden: true
+                },
+
             );
 
             MessagesPanel.currentPanel = new MessagesPanel(panel, extensionUri);
