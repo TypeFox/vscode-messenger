@@ -21,8 +21,8 @@
 		"onCommand:vscode-messenger-devtools.activate",
 		"onView:vscode-messenger-devtools.messengerView"
 	],
-	"main": "./lib/extension",
-	"types": "./lib/extension.d.ts",
+	"main": "./lib/devtool-ext",
+	"types": "./lib/devtool-ext.d.ts",
 	"license": "MIT",
 	"contributes": {
 		"viewsContainers": {

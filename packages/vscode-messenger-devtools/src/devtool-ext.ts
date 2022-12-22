@@ -41,7 +41,6 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
             panel.reveal();
         }
-
     }));
 
     context.subscriptions.push(vscode.extensions.onDidChange(_e => {
