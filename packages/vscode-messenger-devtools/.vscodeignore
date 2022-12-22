@@ -13,6 +13,7 @@ src/**
 
 # Ignore all webview-ui files except the build directory
 webview-ui/src/**
+webview-ui/css/**
 webview-ui/public/**
 webview-ui/scripts/**
 webview-ui/index.html
@@ -24,6 +25,8 @@ webview-ui/node_modules/**
 # Ignore Misc
 .yarnrc
 vsc-extension-quickstart.md
+vscode-messenger-devtools-*
+media
 **/.gitignore
 **/tsconfig.json
 **/vite.config.ts

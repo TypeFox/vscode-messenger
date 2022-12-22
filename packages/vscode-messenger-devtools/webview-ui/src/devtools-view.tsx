@@ -73,7 +73,7 @@ const columnDefs: ColDef[] = [
             if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
                 return `${event.size} (${event.timeAfterRequest}ms)`;
             }
-            return event.size;
+            return String(event.size);
 
         }
     },
@@ -88,7 +88,7 @@ const columnDefs: ColDef[] = [
                 const prependZero = (n: number) => ('0' + n).slice(-2);
                 return `${prependZero(date.getHours())}:${prependZero(date.getMinutes())}:${prependZero(date.getSeconds())}-${('00' + date.getMilliseconds()).slice(-3)}`;
             }
-            return time;
+            return String(time);
         }
     },
     { field: 'error' },

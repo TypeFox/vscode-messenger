@@ -1,7 +1,7 @@
 # VS Code Messenger Developer Tool
 
 Shows messages sended between extension and registered extension webviews. Provides information about installed extensions that uses
-vscode-messenger library.
+[vscode-messenger](https://github.com/TypeFox/vscode-messenger) library.
 
 #### Open Devtool View
 Open _Command Palette..._ (Shift + Cmd + P)

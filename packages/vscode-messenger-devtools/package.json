@@ -1,6 +1,6 @@
 {
 	"name": "vscode-messenger-devtools",
-	"version": "0.4.3",
+	"version": "0.4.4",
 	"publisher": "TypeFox",
 	"displayName": "VS Code Messenger Devtools",
 	"description": "Message communication visualization for VS Code.",
@@ -24,16 +24,8 @@
 	"main": "./lib/devtool-ext",
 	"types": "./lib/devtool-ext.d.ts",
 	"license": "MIT",
+	"icon": "logo-icon.png",
 	"contributes": {
-		"views": {
-			"vscode-messenger-devtools_viewContainer": [
-				{
-					"type": "webview",
-					"id": "vscode-messenger-devtools.messengerView",
-					"name": "Messenger"
-				}
-			]
-		},
 		"commands": [
 			{
 				"category": "Developer",
@@ -55,7 +47,7 @@
 	},
 	"dependencies": {
 		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "^0.4.3"
+		"vscode-messenger": "^0.4.4"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.70.0",
