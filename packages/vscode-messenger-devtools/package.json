@@ -1,7 +1,7 @@
 {
 	"name": "vscode-messenger-devtools",
 	"version": "0.4.3",
-	"publisher": "dhuebner",
+	"publisher": "TypeFox",
 	"displayName": "VS Code Messenger Devtools",
 	"description": "Message communication visualization for VS Code.",
 	"keywords": [
