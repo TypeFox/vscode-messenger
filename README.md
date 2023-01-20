@@ -2,6 +2,14 @@
 RPC messaging library for the VS Code extension platform
 
 [![npm](https://img.shields.io/npm/v/vscode-messenger)](https://www.npmjs.com/package/vscode-messenger) [![CI](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml/badge.svg)](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml) [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/typefox/vscode-messenger)
+
+
+#### Diagnostics vs-code extension
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/typefox.vscode-messenger-devtools?label=VS-Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=typefox.vscode-messenger-devtools)
+
+
+[Devtool vscode extension](https://github.com/TypeFox/vscode-messenger/tree/main/packages/vscode-messenger-devtools) helps inspecting messages interaction between your extension components.
+
 #### Supported features
 
 - Sending notification or an async request from an extension to a view, a view group or broadcast to all registered views
