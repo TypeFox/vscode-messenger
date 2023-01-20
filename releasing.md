@@ -29,3 +29,21 @@ npm run install:all
 npm run build:webview
 vsce package
 ```
+
+#### Publish Open VSX
+
+- Add a changelog.md entry
+
+- Create token `https://open-vsx.org/user-settings/tokens` or use existing
+
+- Publish OpenVSX `npx ovsx publish -p <open vsx access token>` 
+
+#### Publish VSCode
+
+- Install vsce `npm install -g vsce`
+
+- Create token in `https://dev.azure.com/typefox/_usersSettings/tokens`
+
+- Login `vsce login typefox`
+
+- Publish: `vsce publish`

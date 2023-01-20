@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
         listenToNotifications(compatibleExtensions());
     });
     console.debug('Messenger Devtools activated.');
-    return msg.diagnosticApi();
+    return msg.diagnosticApi({ withParameterData: true });
 }
 
 export function deactivate(): void {
@@ -94,8 +94,10 @@ function listenToNotification(extension: vscode.Extension<unknown>): void {
     const publicApi = diagnosticApi(extension);
     if (publicApi && !listeners.has(extension.id)) {
         const eventListener = (event: MessengerEvent) => {
-            if (event.method !== 'pushData')
+            const isPushDataMsg = event.method === 'pushData' && event.receiver === WEBVIEW_TYPE && event.type === 'notification';
+            if (!isPushDataMsg) {
                 msg.sendNotification({ method: 'pushData' }, { type: 'webview', webviewType: WEBVIEW_TYPE }, { extension: extension.id, event });
+            }
         };
         listeners.set(extension.id, publicApi.addEventListener(eventListener));
         console.debug(`Attached diagnostic listener to '${extension.id}'`);

@@ -25,6 +25,7 @@ interface ExtensionData {
 }
 interface ExtendedMessengerEvent extends MessengerEvent {
     timeAfterRequest?: number
+    methodTooltip?: string
 }
 
 interface DevtoolsComponentState {
@@ -65,7 +66,10 @@ const columnDefs: ColDef[] = [
     },
     { field: 'sender', initialWidth: 180 },
     { field: 'receiver', initialWidth: 180 },
-    { field: 'method', initialWidth: 135 },
+    {
+        field: 'method', initialWidth: 135,
+        tooltipField: 'methodTooltip'
+    },
     {
         field: 'size', headerName: 'Size (Time)', initialWidth: 135,
         cellRenderer: (params: any) => {
@@ -130,6 +134,13 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             const request = extensionData.events.slice(0, 200).find(event => event.type === 'request' && event.id === dataEvent.event.id);
             if (request && request.timestamp) {
                 dataEvent.event.timeAfterRequest = dataEvent.event.timestamp - request.timestamp;
+            }
+        }
+        if (dataEvent.event.type === 'notification' || dataEvent.event.type === 'request') {
+            if (dataEvent.event.parameter) {
+                dataEvent.event.methodTooltip = `Parameter (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
+            } else {
+                dataEvent.event.methodTooltip = 'Parameters are empty or suppressed using diagnostic API options.';
             }
         }
         extensionData.events.unshift(dataEvent.event);
@@ -227,14 +238,26 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                             + (!selectedExt?.active ? 'is not active' :
                                 (!selectedExt?.exportsDiagnosticApi ? "doesn't export diagnostic API" : 'is active and exports diagnostic API.'))
                         } />
+
                     <span className='info-param-name'>Views:</span>
-                    <VSCodeBadge className='ext-info-badge'>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
+                    <VSCodeBadge className='ext-info-badge' title={
+                        'Registered views:\n' + (selectedExt?.info?.webviews ?? []).map(entry => '  ' + entry.id).join('\n')
+                    }>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
+
                     <span className='info-param-name'>Listeners:</span>
                     <VSCodeBadge className='ext-info-badge'
                         title='Number of registered diagnostic listeners.'>{selectedExt?.info?.diagnosticListeners ?? 0}</VSCodeBadge>
+
+                    <span className='info-param-name'>Handlers:</span>
+                    <VSCodeBadge className='ext-info-badge'
+                        title={
+                            'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
+                        }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
+
                     <span className='info-param-name'>Pend. Requests:</span>
                     <VSCodeBadge className='ext-info-badge'
                         title='Number of pending requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
+
                     <span className='info-param-name'>Events:</span>
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
                 </div>

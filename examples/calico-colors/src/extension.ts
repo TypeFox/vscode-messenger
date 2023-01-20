@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { Messenger } from 'vscode-messenger';
+import { Messenger, MessengerDiagnostic } from 'vscode-messenger';
 import { NotificationType, RequestType } from 'vscode-messenger-common';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -22,7 +22,18 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('calicoColors.clearColors', () => {
 			provider.clearColors();
 		}));
-	return provider.getMessenger().diagnosticApi();
+	const diagnostics = provider.getMessenger().diagnosticApi({ withParameterData: true });
+	return {
+		...diagnostics,
+		addEventListener: (listener)=> {
+			diagnostics.addEventListener((e) => {
+				if(e.method === 'colorSelected') {
+					e.method = `colorSelected(${JSON.stringify(e.parameter)})`;
+				}
+				listener(e);
+			});
+		}
+	} as MessengerDiagnostic;
 }
 
 export const colorSelectType: NotificationType<string> = { method: 'colorSelected' };
@@ -83,13 +94,13 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 			this.colorModify('add');
 		}
 	}
-	
+
 	public clearColors() {
 		if (this._view) {
 			this.colorModify('clear');
 		}
 	}
-	
+
 	private colorModify(params: string): void {
 		this.messenger.sendNotification(colorModifyType, { type: 'webview', webviewType: ColorsViewProvider.viewType }, params);
 	}

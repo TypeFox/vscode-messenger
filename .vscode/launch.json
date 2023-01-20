@@ -52,7 +52,8 @@
             "request": "launch",
             "args": [
                 "${workspaceFolder}/examples/calico-colors",
-                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-messenger-devtools"
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-messenger-devtools",
+                "--extensionDevelopmentPath=${workspaceFolder}/examples/calico-colors",
             ],
             "outFiles": [
                 "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui/build/**/*.js",

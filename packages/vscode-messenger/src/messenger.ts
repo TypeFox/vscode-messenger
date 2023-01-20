@@ -11,6 +11,7 @@ import {
     NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
+import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
 
 export class Messenger implements MessengerAPI {
 
@@ -24,7 +25,7 @@ export class Messenger implements MessengerAPI {
 
     protected readonly requests: Map<string, RequestData> = new Map();
 
-    protected readonly eventListeners: Set<(event: MessengerEvent) => void> = new Set();
+    protected readonly eventListeners: Map<(event: MessengerEvent) => void, DiagnosticOptions | undefined> = new Map();
 
     protected readonly options: MessengerOptions;
 
@@ -418,42 +419,58 @@ export class Messenger implements MessengerAPI {
                 event.type = 'request';
                 event.id = msg.id;
                 event.method = msg.method;
+                event.parameter = msg.params;
                 event.size = JSON.stringify(msg.params)?.length ?? 0;
             } else if (isNotificationMessage(msg)) {
                 event.type = 'notification';
                 event.method = msg.method;
+                event.parameter = msg.params;
                 event.size = JSON.stringify(msg.params)?.length ?? 0;
             } else if (isResponseMessage(msg)) {
                 event.type = 'response';
                 event.id = msg.id;
                 event.size = JSON.stringify(msg.result)?.length ?? 0;
-                if(msg.error) {
+                if (msg.error) {
                     event.error = msg.error?.message ? msg.error?.message : 'No error message provided';
-                    if(msg.error.data) {
+                    if (msg.error.data) {
                         event.size += JSON.stringify(msg.error.data)?.length ?? 0;
                     }
                 }
             } else {
                 event.error = `Unknown message to ${msg.receiver}`;
             }
-            this.eventListeners.forEach(listener => listener(event));
+            this.eventListeners.forEach((options, listener) => {
+                if (!options?.withParameterData) {
+                    // Clear parameter if user don't want to expose potential sensible Data to public API
+                    event.parameter = undefined;
+                }
+                listener(event);
+            });
         }
         return Promise.resolve();
     }
 
-    diagnosticApi(): MessengerDiagnostic {
+    /**
+     *  Exposes diagnostic api to be used by message interaction tracking tools.
+     *  True if payload data (parameter, response value) should be added to diagnostic API
+     * @param options Configurations to control the behavior of diagnostic message provider.
+     */
+    diagnosticApi(options?: DiagnosticOptions): MessengerDiagnostic {
         return {
             extensionInfo: () => {
                 return {
                     diagnosticListeners: this.eventListeners.size,
                     pendingRequest: this.requests.size,
+                    handlers:
+                        Array.from(this.handlerRegistry.entries()).map(
+                            entry => { return { method: entry[0], count: entry[1].length }; }),
                     webviews:
                         Array.from(this.viewRegistry.entries()).map(
                             entry => { return { id: entry[0], type: entry[1].container.viewType }; })
                 };
             },
             addEventListener: (listener) => {
-                this.eventListeners.add(listener);
+                this.eventListeners.set(listener, options);
                 return {
                     dispose: () => this.eventListeners.delete(listener)
                 };
@@ -556,64 +573,3 @@ function participantToString(participant: MessageParticipant | undefined): strin
             return 'broadcast';
     }
 }
-
-/**
- * Messenger Diagnostic API
- */
-export interface MessengerDiagnostic {
-    /**
-     * @return Some important information about he extension.
-     */
-    extensionInfo: () => ExtensionInfo;
-
-    /**
-     * Adds event listener that will be notified on new events.
-     * @return a disposable that removes provided listener from the listeners list.
-     */
-    addEventListener: (listener: (event: MessengerEvent) => void) => vscode.Disposable;
-
-    /**
-     * Allow to remove attached event listener.
-     *
-     * **Note**: vscode.Disposable returned by addEventListener can also be used to remove the listener from listener list.
-     */
-    removeEventListener: (listener: (event: MessengerEvent) => void) => void;
-}
-
-export interface ExtensionInfo {
-    /**
-     * @return Information about registered web views
-     */
-    webviews: Array<{ type: string, id: string }>;
-
-    /**
-     * @return Number of currently registered diagnostic listeners.
-     */
-    diagnosticListeners: number;
-
-    /**
-     * @return Number of currently pending requests.
-     */
-    pendingRequest: number;
-}
-
-export function isMessengerDiagnostic(obj: unknown): obj is MessengerDiagnostic {
-    return typeof obj === 'object' && obj !== null
-        && !!(obj as MessengerDiagnostic).extensionInfo
-        && !!(obj as MessengerDiagnostic).addEventListener
-        && !!(obj as MessengerDiagnostic).removeEventListener;
-}
-
-export type EventType = 'notification' | 'request' | 'response' | 'unknown';
-
-export interface MessengerEvent {
-    id?: string | undefined,
-    type: EventType,
-    sender?: string,
-    receiver: string,
-    method?: string | undefined,
-    error?: string | undefined,
-    size: number,
-    timestamp: number
-}
-
