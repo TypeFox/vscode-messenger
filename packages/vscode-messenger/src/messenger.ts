@@ -388,7 +388,7 @@ export class Messenger implements MessengerAPI {
 
     protected async sendNotificationToWebview<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<void> {
         if (!view.visible && this.options.ignoreHiddenViews) {
-            this.log(`Skipped notification for hidden view: ${participantToString(receiver)}`, 'warn');
+            this.log(`Skipped notification for hidden view: ${participantToString(receiver)}`, 'debug');
             return;
         }
 

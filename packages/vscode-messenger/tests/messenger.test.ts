@@ -8,7 +8,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { BROADCAST, HOST_EXTENSION, isRequestMessage, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
-import { Messenger } from '../src';
+import { MessengerEvent } from '../src/diagnostic-api';
+import { Messenger } from '../src/messenger';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
 const VIEW_TYPE_2 = 'test.view.type.2';
@@ -239,10 +240,10 @@ describe('Extension Messenger', () => {
         messenger.registerWebviewView(view1);
         messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled1:' + params;
-        }, { sender: { type: 'webview', webviewId: 'asdf' }});
+        }, { sender: { type: 'webview', webviewId: 'asdf' } });
         messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled2:' + params;
-        }, { sender: { type: 'webview', webviewType: 'asdf' }});
+        }, { sender: { type: 'webview', webviewType: 'asdf' } });
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'No matching request handler' } });
@@ -253,7 +254,7 @@ describe('Extension Messenger', () => {
         const p1 = messenger.registerWebviewView(view1);
         messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled1:' + params;
-        }, { sender: { type: 'webview', webviewId: 'asdf' }});
+        }, { sender: { type: 'webview', webviewId: 'asdf' } });
         messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled2:' + params;
         }, { sender: p1 });
@@ -393,8 +394,43 @@ describe('Extension Messenger', () => {
             {
                 id: 'fake_req_id',
                 error: {
-                    message:'Failed to handle request'
+                    message: 'Failed to handle request'
                 }
+            }
+        );
+    });
+
+    test('Handle async handler error and diagnostic API', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.onRequest(simpleRequest, async (params: string, sender: MessageParticipant) => {
+            throw new Error('Failed to handle request');
+        });
+
+        // Track diagnostic events
+        const diagnosticEvents: MessengerEvent[] = [];
+        messenger.diagnosticApi().addEventListener((event) => diagnosticEvents.push(event));
+
+        // Simulate webview request
+        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+
+        // check response error
+        expect(view1.messages[0]).toMatchObject(
+            {
+                id: 'fake_req_id',
+                error: {
+                    message: 'Failed to handle request'
+                }
+            }
+        );
+        // check diagnostic event
+        expect(diagnosticEvents[1]).toMatchObject(
+            {
+                error: 'Failed to handle request',
+                id: 'fake_req_id',
+                receiver: 'test.view.type.1_0',
+                sender: 'host extension',
+                type: 'response',
             }
         );
     });
