@@ -294,7 +294,7 @@ export class Messenger implements MessengerAPI {
         };
     }
 
-    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R> {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
@@ -351,7 +351,7 @@ export class Messenger implements MessengerAPI {
         return result;
     }
 
-    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
+    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
         if (receiver.type === 'extension') {
             throw new Error('Notifications to other extensions are not supported yet.');
         } else if (receiver.type === 'webview') {
@@ -386,7 +386,7 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    protected async sendNotificationToWebview<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<void> {
+    protected async sendNotificationToWebview<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P | undefined, view: ViewContainer): Promise<void> {
         if (!view.visible && this.options.ignoreHiddenViews) {
             this.log(`Skipped notification for hidden view: ${participantToString(receiver)}`, 'debug');
             return;

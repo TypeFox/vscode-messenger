@@ -125,7 +125,7 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P): Promise<R> {
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
         }
@@ -145,7 +145,7 @@ export class Messenger implements MessengerAPI {
         return result;
     }
 
-    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params: P): void {
+    sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
         const message: NotificationMessage = {
             method: type.method,
             receiver,
