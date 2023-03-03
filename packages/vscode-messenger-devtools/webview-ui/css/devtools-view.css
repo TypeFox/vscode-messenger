@@ -1,11 +1,12 @@
-
 .ag-row .ag-header-row {
   font-size: var(--vscode-font-size);
 }
+
 div.ag-theme-alpine div.ag-row {
   font-size: var(--vscode-font-size) !important;
   color: var(--vscode-foreground) !important;
 }
+
 div.ag-theme-alpine-dark div.ag-row {
   font-size: var(--vscode-font-size) !important;
   color: var(--vscode-foreground) !important;
@@ -14,6 +15,7 @@ div.ag-theme-alpine-dark div.ag-row {
 div.ag-theme-alpine div.ag-header-row {
   color: var(--vscode-foreground) !important;
 }
+
 div.ag-theme-alpine-dark div.ag-header-row {
   color: var(--vscode-foreground) !important;
 }
@@ -22,9 +24,10 @@ div.ag-theme-alpine-dark div.ag-header-row {
   padding-left: 7px;
   padding-right: 7px;
   border-right-color: black;
-  border-right-width: 1px ;
-  border-right-style: solid ;
+  border-right-width: 1px;
+  border-right-style: solid;
 }
+
 html {
   height: 100%;
 }
@@ -56,7 +59,7 @@ body[data-vscode-theme-kind="vscode-dark"] {
   margin-bottom: 5px;
 }
 
-#event-table{
+#event-table {
   height: 100%
 }
 
@@ -65,7 +68,8 @@ body[data-vscode-theme-kind="vscode-dark"] {
   flex-direction: row;
 }
 
-.refresh-button {
+.refresh-button,
+.clear-button {
   margin-left: 4px;
   margin-top: auto;
 }
@@ -92,25 +96,30 @@ span.ext-info-badge.codicon.codicon-warning {
 span.ext-info-badge.codicon.codicon-stop {
   color: #ec3f00;
 }
+
 span.table-cell.codicon.codicon-stop {
   color: #ec3f00;
   align-self: center;
   padding-left: 10px;
 }
+
 span.ext-info-badge.codicon.codicon-pass {
   color: green;
 }
+
 /* Table row colors*/
 
 div.rowType_request {
-  color: var(--vscode-textLink-foreground) /* blue */
+  color: var(--vscode-textLink-foreground)
+    /* blue */
 }
 
 div.rowType_response {
-  color: var(--vscode-editorGutter-addedBackground) /* green */
+  color: var(--vscode-editorGutter-addedBackground)
+    /* green */
 }
 
 div.rowType_notification {
-  color: var(--vscode-editorMarkerNavigationWarning-background) /* orange/braun */
+  color: var(--vscode-editorMarkerNavigationWarning-background)
+    /* orange/braun */
 }
-

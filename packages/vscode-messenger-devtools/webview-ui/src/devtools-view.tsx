@@ -165,10 +165,21 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         }
     }
 
-    async fillExtensionsList(refresh: boolean) {
+    async fillExtensionsList(refresh: boolean): Promise<void> {
         const extensions = await this.messenger.sendRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, HOST_EXTENSION, { refresh });
         extensions.forEach(ext => this.updateExtensionData(ext));
         this.updateState(this.state, true);
+    }
+
+    async clearExtensionData(extensionId: string | undefined): Promise<void> {
+        if (!extensionId) {
+            return;
+        }
+        const extData = this.state.datasetSrc.get(extensionId);
+        if (extData) {
+            extData.events = [];
+            this.updateState(this.state, true);
+        }
     }
 
     updateExtensionData(ext: ExtensionData) {
@@ -203,8 +214,11 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                             </VSCodeOption>
                         ))}
                     </VSCodeDropdown>
-                    <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh' onClick={() => this.fillExtensionsList(true)}>
+                    <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh Extension Data' onClick={() => this.fillExtensionsList(true)}>
                         <span className='codicon codicon-refresh' title='Refresh' />
+                    </VSCodeButton>
+                    <VSCodeButton className='clear-button' appearance='icon' aria-label='Clear Data' onClick={() => this.clearExtensionData(selectedExt?.id)}>
+                        <span className='codicon codicon-trashcan' title='Clear Data' />
                     </VSCodeButton>
                     <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={
                         () => {
