@@ -74,10 +74,14 @@ const columnDefs: ColDef[] = [
         field: 'size', headerName: 'Size (Time)', initialWidth: 135,
         cellRenderer: (params: any) => {
             const event = (params.data as ExtendedMessengerEvent);
+            const charsCount = Intl.NumberFormat('en', {notation: 'compact'}).format(event.size);
             if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
-                return `${event.size} (${event.timeAfterRequest}ms)`;
+                const tookMs = event.timeAfterRequest % 1000;
+                const tookSec = Math.trunc(event.timeAfterRequest / 1000);
+                const secPart = (tookSec>0)? `${tookSec}s ` : '';
+                return `${charsCount} (${secPart}${tookMs}ms)`;
             }
-            return String(event.size);
+            return charsCount;
 
         }
     },
@@ -268,10 +272,10 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                             'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
                         }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
 
-                    <span className='info-param-name'>Pend. Requests:</span>
+                    {/*<span className='info-param-name'>Pend. Requests:</span>
                     <VSCodeBadge className='ext-info-badge'
                         title='Number of pending requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
-
+                    */}
                     <span className='info-param-name'>Events:</span>
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
                 </div>

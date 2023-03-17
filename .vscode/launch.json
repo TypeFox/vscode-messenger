@@ -33,21 +33,7 @@
             "internalConsoleOptions": "neverOpen"
         },
         {
-            "name": "Run Color Example",
-            "type": "extensionHost",
-            "request": "launch",
-            "runtimeExecutable": "${execPath}",
-            "args": [
-                "${workspaceFolder}/examples",
-                "--extensionDevelopmentPath=${workspaceFolder}/examples/calico-colors"
-            ],
-            "outFiles": [
-                "${workspaceFolder}/examples/calico-colors/out/**/*.js"
-            ],
-            "preLaunchTask": "npm: watch"
-        },
-        {
-            "name": "Run Devtools Extension",
+            "name": "Run Devtools Extension and examples",
             "type": "extensionHost",
             "request": "launch",
             "args": [

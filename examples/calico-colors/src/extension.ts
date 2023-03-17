@@ -25,9 +25,10 @@ export function activate(context: vscode.ExtensionContext) {
 	const diagnostics = provider.getMessenger().diagnosticApi({ withParameterData: true });
 	return {
 		...diagnostics,
-		addEventListener: (listener)=> {
+		addEventListener: (listener) => {
+			// wrap listener to change the `method` to also contain the passed parameter 
 			diagnostics.addEventListener((e) => {
-				if(e.method === 'colorSelected') {
+				if (e.method === 'colorSelected') {
 					e.method = `colorSelected(${JSON.stringify(e.parameter)})`;
 				}
 				listener(e);
@@ -78,32 +79,44 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
 		this.messenger.registerWebviewView(webviewView);
 
-		this.messenger.onNotification<string>(colorSelectType, (params: string) => {
+		const disposables: vscode.Disposable[] = [];
+
+		// re-act on view notification when a color was selected
+		disposables.push(this.messenger.onNotification<string>(colorSelectType, (params: string) => {
 			vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${params}`));
-		});
+		}));
 
 		// Additional functionality to demonstrate request handler
-		this.messenger.onRequest(availableColorsType, (params: string) => {
-			return ['020202', 'f1eeee', 'a85b20', 'daab70', 'efcb99'];
-		});
+		disposables.push(this.messenger.onRequest(availableColorsType, async (params: string) => {
+			const colors = [];
+			for (let i = 0; i < 1; i++) {
+				colors.push(['020202', 'f1eeee', 'a85b20', 'daab70', 'efcb99']);
+			}
+			await new Promise((resolve) => setTimeout(() => resolve(true), 3444
+
+			));
+			return colors.flat();
+		}));
+		webviewView.onDidDispose(() => disposables.forEach(disposable => disposable.dispose()));
 	}
 
 	public addColor() {
 		if (this._view) {
 			this._view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-			this.colorModify('add');
+			this.sendNotificationView('add');
 		}
 	}
 
 	public clearColors() {
 		if (this._view) {
-			this.colorModify('clear');
+			this.sendNotificationView('clear');
 		}
 	}
 
-	private colorModify(params: string): void {
+	private sendNotificationView(params: string): void {
 		this.messenger.sendNotification(colorModifyType, { type: 'webview', webviewType: ColorsViewProvider.viewType }, params);
 	}
+
 	private _getHtmlForWebview(webview: vscode.Webview) {
 		// Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
 		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'web-view-bundle.js'));

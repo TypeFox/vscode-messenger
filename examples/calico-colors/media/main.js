@@ -27,10 +27,6 @@
 
     messenger.onNotification({method: 'colorModify'}, (params) => {
         switch(params) {
-            case 'add': {
-                addColor();
-                break;
-            }
             case 'clear': {
                 colors = [];
                 updateColorList(colors);

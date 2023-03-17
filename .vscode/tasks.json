@@ -15,6 +15,40 @@
 				"kind": "build",
 				"isDefault": true
 			}
+		},
+		{
+			"isBackground": true,
+			"type": "shell",
+			"icon": {
+				"color": "terminal.ansiCyan",
+				"id": "gear"
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/packages/vscode-messenger-devtools"
+			},
+			"command": "npm run watch",
+			"label": "Devtools watch",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"dependsOrder": "parallel"
+		},
+		{
+			"isBackground": true,
+			"type": "shell",
+			"icon": {
+				"color": "terminal.ansiMagenta",
+				"id": "gear"
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui"
+			},
+			"dependsOrder": "parallel",
+			"command": "npm run watch",
+			"label": "Devtools Webview watch",
+			"problemMatcher": [
+				"$tsc"
+			]
 		}
 	]
 }
