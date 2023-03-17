@@ -1,6 +1,6 @@
 {
 	"name": "vscode-messenger-devtools",
-	"version": "0.4.4",
+	"version": "0.4.5",
 	"publisher": "TypeFox",
 	"displayName": "VS Code Messenger Devtools",
 	"description": "Message communication visualization for VS Code.",
@@ -47,7 +47,7 @@
 	},
 	"dependencies": {
 		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "^0.4.4"
+		"vscode-messenger": "^0.4.5"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.70.0",

@@ -23,16 +23,19 @@ npm run build && npm run publish:latest
 ```
 
 #### Devtools extension build
+- Add a changelog.md entry
+
 ```
 cd ../vscode-messenger-devtools
 npm run install:all
+npm run vscode:prepublish
 npm run build:webview
 vsce package
 ```
 
 #### Publish Open VSX
 
-- Add a changelog.md entry
+- Check the changelog.md entry
 
 - Create token `https://open-vsx.org/user-settings/tokens` or use existing
 
@@ -40,7 +43,7 @@ vsce package
 
 #### Publish VSCode
 
-- Install vsce `npm install -g vsce`
+- Install vsce `npm install -g @vscode/vsce`
 
 - Create token in `https://dev.azure.com/typefox/_usersSettings/tokens`
 
