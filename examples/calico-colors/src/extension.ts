@@ -88,14 +88,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
 		// Additional functionality to demonstrate request handler
 		disposables.push(this.messenger.onRequest(availableColorsType, async (params: string) => {
-			const colors = [];
-			for (let i = 0; i < 1; i++) {
-				colors.push(['020202', 'f1eeee', 'a85b20', 'daab70', 'efcb99']);
-			}
-			await new Promise((resolve) => setTimeout(() => resolve(true), 3444
-
-			));
-			return colors.flat();
+			return 	['020202', 'f1eeee', 'a85b20', 'daab70', 'efcb99'];
 		}));
 		webviewView.onDidDispose(() => disposables.forEach(disposable => disposable.dispose()));
 	}
@@ -103,17 +96,17 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 	public addColor() {
 		if (this._view) {
 			this._view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-			this.sendNotificationView('add');
+			this.sendNotificationToView('add');
 		}
 	}
 
 	public clearColors() {
 		if (this._view) {
-			this.sendNotificationView('clear');
+			this.sendNotificationToView('clear');
 		}
 	}
 
-	private sendNotificationView(params: string): void {
+	private sendNotificationToView(params: string): void {
 		this.messenger.sendNotification(colorModifyType, { type: 'webview', webviewType: ColorsViewProvider.viewType }, params);
 	}
 
