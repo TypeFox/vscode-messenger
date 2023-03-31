@@ -68,6 +68,11 @@ body[data-vscode-theme-kind="vscode-dark"] {
   flex-direction: row;
 }
 
+#diagram {
+  display: flex;
+  flex-direction: row;
+}
+
 .refresh-button,
 .clear-button {
   margin-left: 4px;

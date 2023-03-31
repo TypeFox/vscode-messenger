@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { Messenger, MessengerDiagnostic } from 'vscode-messenger';
+import { Messenger, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
 import { NotificationType, RequestType } from 'vscode-messenger-common';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
 		...diagnostics,
 		addEventListener: (listener) => {
 			// wrap listener to change the `method` to also contain the passed parameter 
-			diagnostics.addEventListener((e) => {
+			return diagnostics.addEventListener((e) => {
 				if (e.method === 'colorSelected') {
 					e.method = `colorSelected(${JSON.stringify(e.parameter)})`;
 				}

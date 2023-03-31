@@ -12,6 +12,7 @@ import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
 import '../node_modules/@vscode/codicons/dist/codicon.ttf';
+import { Diagram } from './components/diagram';
 import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { vscodeApi } from './utilities/vscode';
 
@@ -32,13 +33,15 @@ interface DevtoolsComponentState {
     selectedExtension: string
     datasetSrc: Map<string, ExtensionData>
     chartsShown: boolean
+    diagramShown: boolean
 }
 
 function storeState(uiState: DevtoolsComponentState): void {
     vscodeApi.setState({
         selectedExtension: uiState.selectedExtension,
         datasetSrc: [...uiState.datasetSrc],
-        chartsShown: uiState.chartsShown
+        chartsShown: uiState.chartsShown,
+        diagramShown: uiState.diagramShown
     });
 }
 
@@ -48,7 +51,8 @@ function restoreState(): DevtoolsComponentState | undefined {
         return {
             selectedExtension: stored.selectedExtension,
             datasetSrc: new Map(stored.datasetSrc),
-            chartsShown: stored.chartsShown
+            chartsShown: stored.chartsShown,
+            diagramShown: stored.diagramShown
         };
     }
     return undefined;
@@ -74,11 +78,11 @@ const columnDefs: ColDef[] = [
         field: 'size', headerName: 'Size (Time)', initialWidth: 135,
         cellRenderer: (params: any) => {
             const event = (params.data as ExtendedMessengerEvent);
-            const charsCount = Intl.NumberFormat('en', {notation: 'compact'}).format(event.size);
+            const charsCount = Intl.NumberFormat('en', { notation: 'compact' }).format(event.size);
             if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
                 const tookMs = event.timeAfterRequest % 1000;
                 const tookSec = Math.trunc(event.timeAfterRequest / 1000);
-                const secPart = (tookSec>0)? `${tookSec}s ` : '';
+                const secPart = (tookSec > 0) ? `${tookSec}s ` : '';
                 return `${charsCount} (${secPart}${tookMs}ms)`;
             }
             return charsCount;
@@ -112,7 +116,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         this.state = {
             selectedExtension: storedState?.selectedExtension ?? '',
             datasetSrc: new Map(storedState?.datasetSrc) ?? new Map(),
-            chartsShown: storedState?.chartsShown ?? false
+            chartsShown: storedState?.chartsShown ?? false,
+            diagramShown: storedState?.diagramShown ?? false
         };
         this.refObj = React.createRef();
         this.messenger = new Messenger(vscodeApi, { debugLog: true });
@@ -226,7 +231,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     </VSCodeButton>
                     <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={
                         () => {
-                            this.updateState({ ...this.state, chartsShown: !this.state.chartsShown }, false);
+                            this.updateState({ ...this.state, chartsShown: !this.state.chartsShown, diagramShown: false }, false);
                             const chartsDiv = document.getElementById('charts');
                             if (chartsDiv) {
                                 if (chartsDiv.style.display === 'none') {
@@ -242,6 +247,23 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                         }
                     }>
                         <span className='codicon codicon-graph' title='Toggle Charts' />
+                    </VSCodeButton>
+                    <VSCodeButton className='toggle-diagram-button' appearance='icon' aria-label='Toggle Diagram' onClick={
+                        () => {
+                            this.updateState({ ...this.state, diagramShown: !this.state.diagramShown, chartsShown: false }, false);
+                            const diagramDiv = document.getElementById('diagram');
+                            if (diagramDiv) {
+                                if (diagramDiv.style.display === 'none') {
+                                    diagramDiv.style.display = 'flex';
+                                    diagramDiv.style.visibility = 'visible';
+                                } else {
+                                    diagramDiv.style.display = 'none';
+                                    diagramDiv.style.visibility = 'hidden';
+                                }
+                            }
+                        }
+                    }>
+                        <span className='codicon codicon-type-hierarchy' title='Toggle Diagram' />
                     </VSCodeButton>
                 </div>
                 <div id='ext-info'>
@@ -308,6 +330,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 <div id='charts' style={{ display: this.state.chartsShown ? 'flex' : 'none' }}>
                     <ReactECharts option={optionCount} />
                     <ReactECharts option={optionSize} />
+                </div>
+                <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
+                    <Diagram />
                 </div>
             </>
         );
