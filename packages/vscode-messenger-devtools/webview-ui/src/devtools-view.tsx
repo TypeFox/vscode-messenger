@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { VSCodeBadge, VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { ColDef } from 'ag-grid-community';
+import { CellFocusedEvent, ColDef } from 'ag-grid-community';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine-dark.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
@@ -12,11 +12,11 @@ import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
 import '../node_modules/@vscode/codicons/dist/codicon.ttf';
-import { Diagram } from './components/diagram';
+import { createDiagramData, Diagram, HighlightData, updateLinks } from './components/diagram';
 import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { vscodeApi } from './utilities/vscode';
 
-interface ExtensionData {
+export interface ExtensionData {
     id: string
     name: string
     active: boolean
@@ -107,7 +107,7 @@ const columnDefs: ColDef[] = [
 ];
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
 
-    refObj: React.RefObject<AgGridReact<MessengerEvent>>;
+    gridRefObj: React.RefObject<AgGridReact<MessengerEvent>>;
     messenger: Messenger;
 
     constructor() {
@@ -119,7 +119,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             chartsShown: storedState?.chartsShown ?? false,
             diagramShown: storedState?.diagramShown ?? false
         };
-        this.refObj = React.createRef();
+        this.gridRefObj = React.createRef();
         this.messenger = new Messenger(vscodeApi, { debugLog: true });
         this.messenger.onNotification<{ extension: string, event: ExtendedMessengerEvent }>({ method: 'pushData' }, e => this.handleDataPush(e));
         this.messenger.start();
@@ -138,11 +138,15 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             this.updateExtensionData({ id: dataEvent.extension, name: '', active: true, exportsDiagnosticApi: true, events: [] });
         }
         const extensionData = this.state.datasetSrc.get(dataEvent.extension)!;
+
+        const highlight: HighlightData[] = [];
+
         if (dataEvent.event.type === 'response' && dataEvent.event.timestamp) {
             // Take max 200 entries to look-up
             const request = extensionData.events.slice(0, 200).find(event => event.type === 'request' && event.id === dataEvent.event.id);
             if (request && request.timestamp) {
                 dataEvent.event.timeAfterRequest = dataEvent.event.timestamp - request.timestamp;
+                highlight.push({ link: dataEvent.event.receiver + '->' + dataEvent.event.sender, type: 'request' });
             }
         }
         if (dataEvent.event.type === 'notification' || dataEvent.event.type === 'request') {
@@ -153,14 +157,34 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             }
         }
         extensionData.events.unshift(dataEvent.event);
+
+        highlight.push(...this.createHighlightData(extensionData, dataEvent.event));
+        this.updateDiagramEventHighlight(...highlight);
+
         this.updateState(this.state, this.state.selectedExtension === dataEvent.extension);
+    }
+
+    updateDiagramEventHighlight(...highlights: HighlightData[]): void {
+        if (updateLinks) {
+            updateLinks(highlights);
+        }
+    }
+
+    createHighlightData(extensionData: ExtensionData, event: ExtendedMessengerEvent): HighlightData[] {
+        const viewsByType = extensionData.info?.webviews.filter(view => view.type === event.receiver) ?? [];
+        if (viewsByType.length > 0) {
+            // webview type receiver
+            return viewsByType.map(view => { return { link: event.sender + '->' + view.id, type: event.type }; });
+        } else {
+            return [{ link: event.sender + '->' + event.receiver, type: event.type }];
+        }
     }
 
     updateState(newState: DevtoolsComponentState, refreshTable: boolean) {
         this.setState(newState, () => {
             // Callback after `this.state`was updated
             storeState(this.state);
-            if (refreshTable && this.refObj?.current) {
+            if (refreshTable && this.gridRefObj?.current) {
                 // refresh table
                 this.reloadTableData(this.state.datasetSrc.get(this.state.selectedExtension)?.events);
             }
@@ -168,9 +192,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     protected reloadTableData(rowData: MessengerEvent[] | undefined): void {
-        if (this.refObj?.current) {
+        if (this.gridRefObj?.current) {
             // refresh table
-            this.refObj.current.api.setRowData(rowData ?? []);
+            this.gridRefObj.current.api.setRowData(rowData ?? []);
         }
     }
 
@@ -202,6 +226,16 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         }
     }
 
+    gridRowSelected(event: CellFocusedEvent<ExtendedMessengerEvent>): void {
+        const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
+        if (selectedExt && event.rowIndex !== null) {
+            const row = event.api.getDisplayedRowAtIndex(event.rowIndex);
+            if (row?.data) {
+                this.updateDiagramEventHighlight(...this.createHighlightData(selectedExt, row.data));
+            }
+        }
+    }
+
     render() {
         const renderingData = this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? [];
 
@@ -213,6 +247,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const updateState = (selectedId: string) => {
             this.updateState({ ...this.state, selectedExtension: selectedId }, true);
         };
+        const diagramData = createDiagramData(selectedExt);
         return (
             <>
                 <div id='header'>
@@ -256,6 +291,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                                 if (diagramDiv.style.display === 'none') {
                                     diagramDiv.style.display = 'flex';
                                     diagramDiv.style.visibility = 'visible';
+                                    if (updateLinks)
+                                        updateLinks([]);
                                 } else {
                                     diagramDiv.style.display = 'none';
                                     diagramDiv.style.visibility = 'hidden';
@@ -304,7 +341,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 <div id='event-table'
                     className={getComputedStyle(document.getElementById('root')!).getPropertyValue('--event-table-class')}>
                     <AgGridReact
-                        ref={this.refObj}
+                        ref={this.gridRefObj}
                         rowData={renderingData}
                         columnDefs={
                             columnDefs.map(col => {
@@ -324,6 +361,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                         rowHeight={25}
                         headerHeight={28}
                         enableBrowserTooltips={true}
+                        onCellFocused={(e) => this.gridRowSelected(e)}
                     >
                     </AgGridReact>
                 </div>
@@ -332,7 +370,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     <ReactECharts option={optionSize} />
                 </div>
                 <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
-                    <Diagram />
+                    <Diagram data={diagramData} />
                 </div>
             </>
         );

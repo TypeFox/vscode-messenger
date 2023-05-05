@@ -12,7 +12,7 @@ export interface ReactEChartsProps {
     theme?: 'light' | 'dark';
 }
 
-export type ChartData = Map<string, { notification: [number,number]; response: [number,number]; request: [number,number]; }>;
+export type ChartData = Map<string, { notification: [number, number]; response: [number, number]; request: [number, number]; }>;
 
 export function createOptions(charSeries: Array<{ name: string, data: number[] }>, yAxis: string[], legendFormat = ''): ReactEChartsProps['option'] {
     const option: ReactEChartsProps['option'] = {
@@ -41,21 +41,19 @@ export function createOptions(charSeries: Array<{ name: string, data: number[] }
             type: 'category',
             data: yAxis
         },
-        series: charSeries.map((chunk) => {return {...chunk, type: 'bar'};})
+        series: charSeries.map((chunk) => { return { ...chunk, type: 'bar' }; })
     };
     return option;
 }
 
-export function collectChartData(renderingData: MessengerEvent[]):
-{series:  [Array<{ name: string, data: number[] }>,Array<{ name: string, data: number[] }>], senderY: string[]}
-{
+export function collectChartData(renderingData: MessengerEvent[]): { series: [Array<{ name: string, data: number[] }>, Array<{ name: string, data: number[] }>], senderY: string[] } {
     const chartData: ChartData = new Map();
-    const charSeries: [Array<{ name: string, data: number[] }>,Array<{ name: string, data: number[] }>] = [[],[]];
+    const charSeries: [Array<{ name: string, data: number[] }>, Array<{ name: string, data: number[] }>] = [[], []];
     renderingData.map(d => d.sender ?? 'unknown').filter((value, index, self) => self.indexOf(value) === index).sort().forEach((it) => {
         chartData.set(it, {
-            notification: [0,0],
-            response: [0,0],
-            request: [0,0]
+            notification: [0, 0],
+            response: [0, 0],
+            request: [0, 0]
         });
     });
 
@@ -87,7 +85,7 @@ export function collectChartData(renderingData: MessengerEvent[]):
             else if (type === 'notification')
                 return value.notification;
             else
-                return [0,0];
+                return [0, 0];
         });
         charSeries[0].push({
             name: type,
@@ -98,7 +96,7 @@ export function collectChartData(renderingData: MessengerEvent[]):
             data: data.map(senderData => senderData[1])
         });
     });
-    return {series: charSeries, senderY: Array.from(chartData.keys())};
+    return { series: charSeries, senderY: Array.from(chartData.keys()) };
 }
 export function ReactECharts({
     option,
