@@ -12,8 +12,8 @@ import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
 import '../node_modules/@vscode/codicons/dist/codicon.ttf';
-import { createDiagramData, Diagram, HighlightData, updateLinks } from './components/diagram';
-import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
+import { Diagram, HighlightData, updateLinks } from './components/diagram';
+import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { vscodeApi } from './utilities/vscode';
 
 export interface ExtensionData {
@@ -247,7 +247,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const updateState = (selectedId: string) => {
             this.updateState({ ...this.state, selectedExtension: selectedId }, true);
         };
-        const diagramData = createDiagramData(selectedExt);
+
         return (
             <>
                 <div id='header'>
@@ -370,7 +370,12 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     <ReactECharts option={optionSize} />
                 </div>
                 <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
-                    <Diagram data={diagramData} />
+                    {
+                        this.state.diagramShown &&
+                        <Diagram extensionName={selectedExt?.name ?? ''}
+                            webviews={selectedExt?.info?.webviews ?? []}
+                            doCenter={this.state.diagramShown} />
+                    }
                 </div>
             </>
         );

@@ -1,49 +1,75 @@
-import { useState } from 'react';
-import ForceGraph2D, { GraphData, NodeObject } from 'react-force-graph-2d';
-import { ExtensionData } from '../devtools-view';
+import React, { useEffect, useRef, useState } from 'react';
+import ForceGraph2D, { ForceGraphMethods, GraphData, LinkObject, NodeObject } from 'react-force-graph-2d';
 
-type ComponentNode = NodeObject & {
+type GraphObjectExtension = {
     name: string;
     value: number;
 }
 
-export function createDiagramData(extension: ExtensionData | undefined): GraphData {
+type ComponentNode = NodeObject & GraphObjectExtension & {
+    shortName: string;
+}
+type ComponentLink = LinkObject & GraphObjectExtension
 
-    const graphData: GraphData = { nodes: [], links: [] };
+let graphData: GraphData = { nodes: [], links: [] };
 
-    if (!extension) {
+let storedState: DiagramState = {
+    extensionName: '',
+    webviews: [],
+    doCenter: false
+};
+
+type DiagramState = {
+    extensionName: string
+    webviews: Array<{ id: string, type: string }>
+    doCenter: boolean
+}
+
+export function createDiagramData(componentState: DiagramState): GraphData {
+    if (!componentState) {
         return graphData;
     }
+    const toCompareString = (state: DiagramState) => `${state.extensionName} ${state.webviews.map(wv => wv.id).join(',')}`;
+    if (toCompareString(storedState) === toCompareString(componentState)) {
+        // same data, just return the existing graph data
+        return graphData;
+    }
+    // reset graphData, store new state
+    graphData = { nodes: [], links: [] };
+
+    storedState = componentState;
+
+    const unqualifiedName = (name: string) => name.split('.').pop();
     graphData.nodes.push({
         id: 'host extension',
-        name: extension.name,
+        name: componentState.extensionName,
+        shortName: unqualifiedName(componentState.extensionName),
         value: 20
     } as ComponentNode);
-    if (extension.info) {
-        extension.info.webviews.forEach((webview) => {
+
+    if (componentState.webviews) {
+        componentState.webviews.forEach((webview) => {
             graphData.nodes.push({
                 id: webview.id,
                 name: webview.type,
-                value: 10
+                shortName: unqualifiedName(webview.type),
+                value: 12
             } as ComponentNode);
             graphData.links.push({
                 source: 'host extension',
                 target: webview.id,
-                name: `${'host extension'}->${webview.id}`,
+                name: `${'host extension'} to ${webview.id}`,
                 value: 9
-            } as ComponentNode);
+            } as ComponentLink);
             graphData.links.push({
                 source: webview.id,
                 target: 'host extension',
-                name: `${webview.id}->${'host extension'}`,
+                name: `${webview.id} to ${'host extension'}`,
                 value: 9
-            } as ComponentNode);
+            } as ComponentLink);
         });
     }
     return graphData;
-}
-type ComponentState = {
-    data: GraphData
 }
 
 export type HighlightData = { link: string, type: string }
@@ -51,7 +77,7 @@ export type HighlightData = { link: string, type: string }
 export let updateLinks: React.Dispatch<React.SetStateAction<Array<{ link: string, type: string }>>> | undefined = undefined;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function Diagram(options: ComponentState): JSX.Element {
+export function Diagram(options: DiagramState): JSX.Element {
     const [highlightLinks, setHighlightLinks] = useState(Array<HighlightData>());
     updateLinks = setHighlightLinks;
 
@@ -63,18 +89,30 @@ export function Diagram(options: ComponentState): JSX.Element {
             default: return '';
         }
     }
+    const diagramRef = useRef<ForceGraphMethods>();
+    useEffect(() => {
+        setTimeout(() => {
+            if (diagramRef.current && options.doCenter) {
+                // center diagram after diagram panel is shown
+                diagramRef.current.zoomToFit(50, 50);
+            }
+        }, 250);
+    }, [options.doCenter]);
 
     return <ForceGraph2D
-        graphData={options.data}
+        ref={diagramRef}
+        graphData={createDiagramData(options)}
         height={200}
         nodeAutoColorBy="name" // uses Node's property name
-        nodeLabel="name"
+        nodeLabel="shortName"
         linkAutoColorBy="name"
         linkDirectionalParticles={1}
-        linkDirectionalParticleSpeed={link => (link as ComponentNode).value * 0.001}
+        linkDirectionalParticleSpeed={link => (link as ComponentNode).value * 0.002}
         linkDirectionalParticleWidth={link => highlightLinks.find(entry => entry.link === (link.source as NodeObject).id + '->' + (link.target as NodeObject).id) ? 4 : 0}
         linkDirectionalParticleColor={link => toParticleColor(highlightLinks.find(entry => entry.link === (link.source as NodeObject).id + '->' + (link.target as NodeObject).id)?.type)}
         nodeCanvasObject={(rawNode, ctx, _globalScale) => {
+            rawNode.vx = 10;
+            rawNode.vy = 100;
             paintNode(rawNode, (rawNode as { color: string }).color, ctx);
         }}
         nodePointerAreaPaint={paintNode}
