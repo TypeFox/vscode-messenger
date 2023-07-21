@@ -6,7 +6,7 @@
 	"private": true,
 	"license": "MIT",
 	"engines": {
-		"vscode": "^1.53.0"
+		"vscode": "^1.74.0"
 	},
 	"extensionKind": [
 		"ui",
@@ -18,7 +18,8 @@
 	"activationEvents": [
 		"onView:calicoColors.colorsView",
 		"onCommand:calicoColors.addColor",
-		"onCommand:calicoColors.clearColors"
+		"onCommand:calicoColors.clearColors",
+		"onWebviewPanel:catCoding"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -42,6 +43,16 @@
 				"category": "Calico Colors",
 				"title": "Clear Colors",
 				"icon": "$(clear-all)"
+			},
+			{
+				"command": "catCoding.start",
+				"title": "Start cat coding session",
+				"category": "Cat Coding"
+			},
+			{
+				"command": "catCoding.doRefactor",
+				"title": "Do some refactoring",
+				"category": "Cat Coding"
 			}
 		],
 		"menus": {
@@ -60,7 +71,7 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./ && npm run browserify",
 		"lint": "eslint . --ext .ts,.tsx",
-		"browserify": "browserify ./media/main.js > ./media/web-view-bundle.js",
+		"browserify": "browserify ./media/calico-colors/main.js > ./media/web-view-bundle-calico-colors.js && browserify ./media/coding-cat/main.js > ./media/web-view-bundle-coding-cat.js",
 		"watch": "tsc -w -p ./"
 	},
 	"dependencies": {
