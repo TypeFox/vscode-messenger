@@ -7,7 +7,7 @@ import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
 import { AgGridReact } from 'ag-grid-react';
 import React from 'react';
 import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
-import { HOST_EXTENSION } from 'vscode-messenger-common';
+import { HOST_EXTENSION, BROADCAST } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
@@ -170,13 +170,21 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         }
     }
 
-    createHighlightData(extensionData: ExtensionData, event: ExtendedMessengerEvent): HighlightData[] {
-        const viewsByType = extensionData.info?.webviews.filter(view => view.type === event.receiver) ?? [];
+    createHighlightData(extensionData: ExtensionData, msgEvent: ExtendedMessengerEvent): HighlightData[] {
+        const viewsByType = extensionData.info?.webviews.filter(view => msgEvent.receiver === BROADCAST.type || view.type === msgEvent.receiver) ?? [];
         if (viewsByType.length > 0) {
+            if (msgEvent.receiver === BROADCAST.type) {
+                // for broadcast, events first send to the extension host
+                return [
+                    { link: msgEvent.sender + '->' + 'host extension', type: msgEvent.type },
+                    ...viewsByType.filter(view => view.id !== msgEvent.sender)
+                        .map(view => { return { link: 'host extension->' + view.id, type: msgEvent.type }; })
+                ];
+            }
             // webview type receiver
-            return viewsByType.map(view => { return { link: event.sender + '->' + view.id, type: event.type }; });
+            return viewsByType.map(view => { return { link: msgEvent.sender + '->' + view.id, type: msgEvent.type }; });
         } else {
-            return [{ link: event.sender + '->' + event.receiver, type: event.type }];
+            return [{ link: msgEvent.sender + '->' + msgEvent.receiver, type: msgEvent.type }];
         }
     }
 
