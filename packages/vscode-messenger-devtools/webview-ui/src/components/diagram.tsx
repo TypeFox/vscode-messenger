@@ -40,13 +40,16 @@ export function createDiagramData(componentState: DiagramState): GraphData {
     storedState = componentState;
 
     const unqualifiedName = (name: string) => name.split('.').pop();
-    graphData.nodes.push({
-        id: 'host extension',
-        name: componentState.extensionName,
-        shortName: unqualifiedName(componentState.extensionName),
-        value: 20
-    } as ComponentNode);
 
+    if (componentState.extensionName) {
+        graphData.nodes.push({
+            id: 'host extension',
+            name: componentState.extensionName,
+            shortName: unqualifiedName(componentState.extensionName),
+            value: 20
+        } as ComponentNode);
+
+    }
     if (componentState.webviews) {
         componentState.webviews.forEach((webview) => {
             graphData.nodes.push({

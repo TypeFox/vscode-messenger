@@ -1,20 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { VSCodeBadge, VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { CellFocusedEvent, ColDef } from 'ag-grid-community';
+import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
+import { CellFocusedEvent } from 'ag-grid-community';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine-dark.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
-import { AgGridReact } from 'ag-grid-react';
 import React from 'react';
 import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
-import { HOST_EXTENSION, BROADCAST } from 'vscode-messenger-common';
+import { BROADCAST, HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
 import '../node_modules/@vscode/codicons/dist/codicon.ttf';
 import { Diagram, HighlightData, updateLinks } from './components/diagram';
+import { EventTable } from './components/event-table';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
-import { vscodeApi } from './utilities/vscode';
+import { ViewHeader } from './components/view-header';
+import { DevtoolsComponentState, restoreState, storeState, vsCodeApi } from './utilities/view-state';
 
 export interface ExtensionData {
     id: string
@@ -24,91 +25,15 @@ export interface ExtensionData {
     info?: ExtensionInfo
     events: ExtendedMessengerEvent[]
 }
-interface ExtendedMessengerEvent extends MessengerEvent {
+export interface ExtendedMessengerEvent extends MessengerEvent {
     timeAfterRequest?: number
     methodTooltip?: string
 }
 
-interface DevtoolsComponentState {
-    selectedExtension: string
-    datasetSrc: Map<string, ExtensionData>
-    chartsShown: boolean
-    diagramShown: boolean
-}
-
-function storeState(uiState: DevtoolsComponentState): void {
-    vscodeApi.setState({
-        selectedExtension: uiState.selectedExtension,
-        datasetSrc: [...uiState.datasetSrc],
-        chartsShown: uiState.chartsShown,
-        diagramShown: uiState.diagramShown
-    });
-}
-
-function restoreState(): DevtoolsComponentState | undefined {
-    const stored = vscodeApi.getState() as DevtoolsComponentState;
-    if (stored && Array.isArray(stored.datasetSrc)) {
-        return {
-            selectedExtension: stored.selectedExtension,
-            datasetSrc: new Map(stored.datasetSrc),
-            chartsShown: stored.chartsShown,
-            diagramShown: stored.diagramShown
-        };
-    }
-    return undefined;
-}
-
-const columnDefs: ColDef[] = [
-    {
-        field: 'type',
-        initialWidth: 110,
-        cellRenderer: (params: any) => {
-            const rowType = params.data.type ?? 'unknown';
-            const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
-            return <div className={'rowType_' + rowType} style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
-        }
-    },
-    { field: 'sender', initialWidth: 180 },
-    { field: 'receiver', initialWidth: 180 },
-    {
-        field: 'method', initialWidth: 135,
-        tooltipField: 'methodTooltip'
-    },
-    {
-        field: 'size', headerName: 'Size (Time)', initialWidth: 135,
-        cellRenderer: (params: any) => {
-            const event = (params.data as ExtendedMessengerEvent);
-            const charsCount = Intl.NumberFormat('en', { notation: 'compact' }).format(event.size);
-            if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
-                const tookMs = event.timeAfterRequest % 1000;
-                const tookSec = Math.trunc(event.timeAfterRequest / 1000);
-                const secPart = (tookSec > 0) ? `${tookSec}s ` : '';
-                return `${charsCount} (${secPart}${tookMs}ms)`;
-            }
-            return charsCount;
-
-        }
-    },
-    { field: 'id' },
-    {
-        field: 'timestamp',
-        initialWidth: 135,
-        cellRenderer: (params: any) => {
-            const time = params.data.timestamp;
-            if (typeof time === 'number') {
-                const date = new Date(time);
-                const prependZero = (n: number) => ('0' + n).slice(-2);
-                return `${prependZero(date.getHours())}:${prependZero(date.getMinutes())}:${prependZero(date.getSeconds())}-${('00' + date.getMilliseconds()).slice(-3)}`;
-            }
-            return String(time);
-        }
-    },
-    { field: 'error' },
-];
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
 
-    gridRefObj: React.RefObject<AgGridReact<MessengerEvent>>;
     messenger: Messenger;
+    eventTable: EventTable;
 
     constructor() {
         super({});
@@ -119,8 +44,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             chartsShown: storedState?.chartsShown ?? false,
             diagramShown: storedState?.diagramShown ?? false
         };
-        this.gridRefObj = React.createRef();
-        this.messenger = new Messenger(vscodeApi, { debugLog: true });
+        this.eventTable = new EventTable({ gridRowSelected: (e) => this.gridRowSelected(e) });
+        this.messenger = new Messenger(vsCodeApi, { debugLog: true });
         this.messenger.onNotification<{ extension: string, event: ExtendedMessengerEvent }>({ method: 'pushData' }, e => this.handleDataPush(e));
         this.messenger.start();
         this.fillExtensionsList(false).then(() => {
@@ -131,6 +56,110 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 this.updateState(this.state, true);
             }
         });
+
+    }
+    render() {
+
+        const charSeries = collectChartData(this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? []);
+        const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)');
+        const optionCount = createOptions(charSeries.series[1], charSeries.senderY);
+
+        const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
+        const updateState = (selectedId: string) => {
+            this.updateState({ ...this.state, selectedExtension: selectedId }, true);
+        };
+
+        const headerToggleDiagram = () => {
+            this.updateState({ ...this.state, diagramShown: !this.state.diagramShown, chartsShown: false }, false);
+            const diagramDiv = document.getElementById('diagram');
+            if (diagramDiv) {
+                if (diagramDiv.style.display === 'none') {
+                    diagramDiv.style.display = 'flex';
+                    diagramDiv.style.visibility = 'visible';
+                    if (updateLinks)
+                        updateLinks([]);
+                } else {
+                    diagramDiv.style.display = 'none';
+                    diagramDiv.style.visibility = 'hidden';
+                }
+            }
+        };
+        const onToggleCharts =
+            () => {
+                this.updateState({ ...this.state, chartsShown: !this.state.chartsShown, diagramShown: false }, false);
+                const chartsDiv = document.getElementById('charts');
+                if (chartsDiv) {
+                    if (chartsDiv.style.display === 'none') {
+                        chartsDiv.style.display = 'flex';
+                        chartsDiv.style.visibility = 'visible';
+                        optionCount.animation = true; // triggers chats resize
+                    } else {
+                        chartsDiv.style.display = 'none';
+                        chartsDiv.style.visibility = 'hidden';
+                        optionCount.animation = false;
+                    }
+                }
+            };
+        return (
+            <>
+                <ViewHeader
+                    state={{ selectedExtension: this.state.selectedExtension, extensions: Array.from(this.state.datasetSrc.values()) }}
+                    onExtensionSelected={(extId: string) => updateState(extId)}
+                    onRefreshClicked={() => this.fillExtensionsList(true)}
+                    onClearClicked={async (extId: string | undefined) => await this.clearExtensionData(extId)}
+                    onToggleDiagram={headerToggleDiagram}
+                    onToggleCharts={onToggleCharts}
+                />
+                <div id='ext-info'>
+                    <span className='info-param-name'>Status:</span>
+                    <span
+                        className={
+                            'ext-info-badge codicon codicon-'
+                            + (!selectedExt?.active ? 'warning' : (!selectedExt?.exportsDiagnosticApi ? 'stop' : 'pass'))
+                        }
+                        title={
+                            'Extension '
+                            + (!selectedExt?.active ? 'is not active' :
+                                (!selectedExt?.exportsDiagnosticApi ? "doesn't export diagnostic API" : 'is active and exports diagnostic API.'))
+                        } />
+
+                    <span className='info-param-name'>Views:</span>
+                    <VSCodeBadge className='ext-info-badge' title={
+                        'Registered views:\n' + (selectedExt?.info?.webviews ?? []).map(entry => '  ' + entry.id).join('\n')
+                    }>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
+
+                    <span className='info-param-name'>Listeners:</span>
+                    <VSCodeBadge className='ext-info-badge'
+                        title='Number of registered diagnostic listeners.'>{selectedExt?.info?.diagnosticListeners ?? 0}</VSCodeBadge>
+
+                    <span className='info-param-name'>Handlers:</span>
+                    <VSCodeBadge className='ext-info-badge'
+                        title={
+                            'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
+                        }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
+
+                    <span className='info-param-name'>Events:</span>
+                    <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
+                </div>
+
+                {/* Table Component */}
+                {this.eventTable.render()}
+
+                {/* Chart Components */}
+                <div id='charts' style={{ display: this.state.chartsShown ? 'flex' : 'none' }}>
+                    <ReactECharts option={optionCount} />
+                    <ReactECharts option={optionSize} />
+                </div>
+                <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
+                    {
+                        this.state.diagramShown &&
+                        <Diagram extensionName={selectedExt?.name ?? ''}
+                            webviews={selectedExt?.info?.webviews ?? []}
+                            doCenter={this.state.diagramShown} />
+                    }
+                </div>
+            </>
+        );
     }
 
     private handleDataPush(dataEvent: { extension: string, event: ExtendedMessengerEvent }): void {
@@ -192,18 +221,12 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         this.setState(newState, () => {
             // Callback after `this.state`was updated
             storeState(this.state);
-            if (refreshTable && this.gridRefObj?.current) {
+            if (refreshTable) {
                 // refresh table
-                this.reloadTableData(this.state.datasetSrc.get(this.state.selectedExtension)?.events);
+                this.eventTable.getGridApi()?.setRowData(
+                    this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? []);
             }
         });
-    }
-
-    protected reloadTableData(rowData: MessengerEvent[] | undefined): void {
-        if (this.gridRefObj?.current) {
-            // refresh table
-            this.gridRefObj.current.api.setRowData(rowData ?? []);
-        }
     }
 
     async fillExtensionsList(refresh: boolean): Promise<void> {
@@ -242,151 +265,6 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 this.updateDiagramEventHighlight(...this.createHighlightData(selectedExt, row.data));
             }
         }
-    }
-
-    render() {
-        const renderingData = this.state.datasetSrc.get(this.state.selectedExtension)?.events ?? [];
-
-        const charSeries = collectChartData(renderingData);
-        const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)');
-        const optionCount = createOptions(charSeries.series[1], charSeries.senderY);
-
-        const selectedExt = this.state.datasetSrc.get(this.state.selectedExtension);
-        const updateState = (selectedId: string) => {
-            this.updateState({ ...this.state, selectedExtension: selectedId }, true);
-        };
-
-        return (
-            <>
-                <div id='header'>
-                    <VSCodeDropdown value={this.state.selectedExtension} title='List of extensions using vscode-messenger.'>
-                        {Array.from(this.state.datasetSrc.values()).map((ext) => (
-                            <VSCodeOption key={ext.id} value={ext.id} onClick={() => updateState(ext.id)}>
-                                {ext.name}
-                            </VSCodeOption>
-                        ))}
-                    </VSCodeDropdown>
-                    <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh Extension Data' onClick={() => this.fillExtensionsList(true)}>
-                        <span className='codicon codicon-refresh' title='Refresh' />
-                    </VSCodeButton>
-                    <VSCodeButton className='clear-button' appearance='icon' aria-label='Clear Data' onClick={() => this.clearExtensionData(selectedExt?.id)}>
-                        <span className='codicon codicon-trashcan' title='Clear Data' />
-                    </VSCodeButton>
-                    <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={
-                        () => {
-                            this.updateState({ ...this.state, chartsShown: !this.state.chartsShown, diagramShown: false }, false);
-                            const chartsDiv = document.getElementById('charts');
-                            if (chartsDiv) {
-                                if (chartsDiv.style.display === 'none') {
-                                    chartsDiv.style.display = 'flex';
-                                    chartsDiv.style.visibility = 'visible';
-                                    optionCount.animation = true; // triggers chats resize
-                                } else {
-                                    chartsDiv.style.display = 'none';
-                                    chartsDiv.style.visibility = 'hidden';
-                                    optionCount.animation = false;
-                                }
-                            }
-                        }
-                    }>
-                        <span className='codicon codicon-graph' title='Toggle Charts' />
-                    </VSCodeButton>
-                    <VSCodeButton className='toggle-diagram-button' appearance='icon' aria-label='Toggle Diagram' onClick={
-                        () => {
-                            this.updateState({ ...this.state, diagramShown: !this.state.diagramShown, chartsShown: false }, false);
-                            const diagramDiv = document.getElementById('diagram');
-                            if (diagramDiv) {
-                                if (diagramDiv.style.display === 'none') {
-                                    diagramDiv.style.display = 'flex';
-                                    diagramDiv.style.visibility = 'visible';
-                                    if (updateLinks)
-                                        updateLinks([]);
-                                } else {
-                                    diagramDiv.style.display = 'none';
-                                    diagramDiv.style.visibility = 'hidden';
-                                }
-                            }
-                        }
-                    }>
-                        <span className='codicon codicon-type-hierarchy' title='Toggle Diagram' />
-                    </VSCodeButton>
-                </div>
-                <div id='ext-info'>
-                    <span className='info-param-name'>Status:</span>
-                    <span
-                        className={
-                            'ext-info-badge codicon codicon-'
-                            + (!selectedExt?.active ? 'warning' : (!selectedExt?.exportsDiagnosticApi ? 'stop' : 'pass'))
-                        }
-                        title={
-                            'Extension '
-                            + (!selectedExt?.active ? 'is not active' :
-                                (!selectedExt?.exportsDiagnosticApi ? "doesn't export diagnostic API" : 'is active and exports diagnostic API.'))
-                        } />
-
-                    <span className='info-param-name'>Views:</span>
-                    <VSCodeBadge className='ext-info-badge' title={
-                        'Registered views:\n' + (selectedExt?.info?.webviews ?? []).map(entry => '  ' + entry.id).join('\n')
-                    }>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
-
-                    <span className='info-param-name'>Listeners:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title='Number of registered diagnostic listeners.'>{selectedExt?.info?.diagnosticListeners ?? 0}</VSCodeBadge>
-
-                    <span className='info-param-name'>Handlers:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title={
-                            'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
-                        }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
-
-                    {/*<span className='info-param-name'>Pend. Requests:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title='Number of pending requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
-                    */}
-                    <span className='info-param-name'>Events:</span>
-                    <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
-                </div>
-                <div id='event-table'
-                    className={getComputedStyle(document.getElementById('root')!).getPropertyValue('--event-table-class')}>
-                    <AgGridReact
-                        ref={this.gridRefObj}
-                        rowData={renderingData}
-                        columnDefs={
-                            columnDefs.map(col => {
-                                return {
-                                    filter: true, resizable: true, sortable: true,
-                                    cellStyle: (params: any) => {
-                                        if (params.value === 'Police') {
-                                            //mark police cells as red
-                                            return { color: 'red', backgroundColor: 'green' };
-                                        }
-                                        return null;
-                                    },
-                                    tooltipField: col.field,
-                                    ...col
-                                };
-                            })}
-                        rowHeight={25}
-                        headerHeight={28}
-                        enableBrowserTooltips={true}
-                        onCellFocused={(e) => this.gridRowSelected(e)}
-                    >
-                    </AgGridReact>
-                </div>
-                <div id='charts' style={{ display: this.state.chartsShown ? 'flex' : 'none' }}>
-                    <ReactECharts option={optionCount} />
-                    <ReactECharts option={optionSize} />
-                </div>
-                <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
-                    {
-                        this.state.diagramShown &&
-                        <Diagram extensionName={selectedExt?.name ?? ''}
-                            webviews={selectedExt?.info?.webviews ?? []}
-                            doCenter={this.state.diagramShown} />
-                    }
-                </div>
-            </>
-        );
     }
 }
 
