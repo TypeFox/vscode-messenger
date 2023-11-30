@@ -199,8 +199,8 @@ describe('Webview Messenger', () => {
         messenger1.start();
         const messenger2 = new Messenger(vsCodeApi);
         messenger2.start();
-        messenger1.sendRequest(stringNotification, HOST_EXTENSION, 'ping1');
-        messenger2.sendRequest(stringNotification, HOST_EXTENSION, 'ping2');
+        messenger1.sendRequest(stringRequest, HOST_EXTENSION, 'ping1');
+        messenger2.sendRequest(stringRequest, HOST_EXTENSION, 'ping2');
 
         const message1 = vsCodeApi.messages[0] as unknown as any;
         const message2 = vsCodeApi.messages[1] as unknown as any;
