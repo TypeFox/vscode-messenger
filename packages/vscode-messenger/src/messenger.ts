@@ -430,6 +430,7 @@ export class Messenger implements MessengerAPI {
                 event.type = 'response';
                 event.id = msg.id;
                 event.size = JSON.stringify(msg.result)?.length ?? 0;
+                event.parameter = msg.result;
                 if (msg.error) {
                     event.error = msg.error?.message ? msg.error?.message : 'No error message provided';
                     if (msg.error.data) {
@@ -440,8 +441,13 @@ export class Messenger implements MessengerAPI {
                 event.error = `Unknown message to ${msg.receiver}`;
             }
             this.eventListeners.forEach((options, listener) => {
-                if (!options?.withParameterData) {
-                    // Clear parameter if user don't want to expose potential sensible Data to public API
+                if(isResponseMessage(msg)) {
+                    if(!options?.withResponseData) {
+                        // Clear response value if user don't want to expose it
+                        event.parameter = undefined;
+                    }
+                } else if (!options?.withParameterData) {
+                    // Clear parameter if user don't want to expose it
                     event.parameter = undefined;
                 }
                 listener(event);

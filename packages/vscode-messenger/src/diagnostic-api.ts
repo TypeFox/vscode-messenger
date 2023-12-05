@@ -85,6 +85,13 @@ export interface DiagnosticOptions {
      *  If `true` request/notification parameter will be added to the diagnostic MessengerEvent as payload.
      *  If you don't want to expose potential sensible Data to public API set it to false.
      *  Default is: `false`
-     */
+    */
     withParameterData?: boolean
+
+    /**
+     *  If `true` response value will be added to the diagnostic MessengerEvent as payload.
+     *  If you don't want to expose potential sensible Data to public API set it to false.
+     *  Default is: `false`
+     */
+    withResponseData?: boolean
 }

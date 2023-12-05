@@ -37,7 +37,7 @@ export interface ExtensionData {
 }
 export interface ExtendedMessengerEvent extends MessengerEvent {
     timeAfterRequest?: number
-    methodTooltip?: string
+    payloadInfo?: string
 }
 
 const MESSENGER_EXTENSION_ID = 'TypeFox.vscode-messenger-devtools';
@@ -210,8 +210,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const extensionData = this.state.datasetSrc.get(dataEvent.extension)!;
 
         const highlight: HighlightData[] = [];
-
-        if (dataEvent.event.type === 'response' && dataEvent.event.timestamp) {
+        const isResponse = dataEvent.event.type === 'response';
+        if (isResponse && dataEvent.event.timestamp) {
             // Take max 200 entries to look-up
             const request = extensionData.events.slice(0, 200).find(event => event.type === 'request' && event.id === dataEvent.event.id);
             if (request && request.timestamp) {
@@ -220,12 +220,10 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             }
         }
 
-        if (dataEvent.event.type === 'notification' || dataEvent.event.type === 'request') {
-            if (dataEvent.event.parameter) {
-                dataEvent.event.methodTooltip = `Parameter (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
-            } else {
-                dataEvent.event.methodTooltip = 'Parameters are empty or suppressed using diagnostic API options.';
-            }
+        if (dataEvent.event.parameter) {
+            dataEvent.event.payloadInfo = `${isResponse?'Response':'Parameter'} (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
+        } else {
+            dataEvent.event.payloadInfo = 'Payload information is empty or suppressed using diagnostic API options.';
         }
 
         extensionData.events.unshift(dataEvent.event);

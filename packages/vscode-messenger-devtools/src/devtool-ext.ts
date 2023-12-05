@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
         listenToNotifications(compatibleExtensions());
     });
     console.debug('Messenger Devtools activated.');
-    return msg.diagnosticApi({ withParameterData: true });
+    return msg.diagnosticApi({ withParameterData: true, withResponseData: true});
 }
 
 export function deactivate(): void {

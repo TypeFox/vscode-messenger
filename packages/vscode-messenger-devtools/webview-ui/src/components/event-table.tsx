@@ -16,13 +16,14 @@ const columnDefs: ColDef[] = [
             const rowType = params.data.type ?? 'unknown';
             const error = params.data.error ? <span className='table-cell codicon codicon-stop' title={params.data.error}></span> : undefined;
             return <div className={'rowType_' + rowType} style={{ display: 'flex', alignContent: 'space-between' }}><span style={{ flexGrow: 1 }}>{params.value}</span>{error}</div>;
-        }
+        },
+        tooltipField: 'payloadInfo'
     },
     { field: 'sender', initialWidth: 180 },
     { field: 'receiver', initialWidth: 180 },
     {
         field: 'method', initialWidth: 135,
-        tooltipField: 'methodTooltip'
+        tooltipField: 'payloadInfo'
     },
     {
         field: 'size', headerName: 'Size (Time)', initialWidth: 135,
