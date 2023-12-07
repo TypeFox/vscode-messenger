@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ForceGraph2D, { ForceGraphMethods, GraphData, LinkObject, NodeObject } from 'react-force-graph-2d';
 
 type GraphObjectExtension = {

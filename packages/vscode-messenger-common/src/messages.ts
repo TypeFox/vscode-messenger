@@ -141,8 +141,14 @@ export type JsonArray = JsonAny[];
 /**
  * Data structure for defining a request type.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type RequestType<P, R> = { method: string };
+export type RequestType<P, R> = {
+    method: string
+
+    /**
+     * Used to ensure correct typing. Clients must not use this property
+     */
+    readonly _?: [P,R]
+};
 
 /**
  * Function for handling incoming requests.
@@ -153,8 +159,13 @@ export type HandlerResult<R> = R | Promise<R>;
 /**
  * Data structure for defining a notification type.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type NotificationType<P> = { method: string };
+export type NotificationType<P> = {
+    method: string
+    /**
+     * Used to ensure correct typing. Clients must not use this property
+     */
+    readonly _?: P
+};
 
 /**
  * Function for handling incoming notifications.
