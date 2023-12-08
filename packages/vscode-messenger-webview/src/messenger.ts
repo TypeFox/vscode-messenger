@@ -7,14 +7,15 @@
 import {
     isMessage,
     isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI,
-    NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
+    NotificationHandler, NotificationMessage, NotificationType, PendingRequest, RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
 } from 'vscode-messenger-common';
 import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
-    protected readonly requests: Map<string, RequestData> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected readonly requests: Map<string, PendingRequest<any>> = new Map();
 
     protected readonly vscode: VsCodeApi;
 
@@ -131,9 +132,8 @@ export class Messenger implements MessengerAPI {
         }
 
         const msgId = this.createMsgId();
-        const result = new Promise<R>((resolve, reject) => {
-            this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
-        });
+        const pending = new PendingRequest<R>();
+        this.requests.set(msgId, pending);
         const message: RequestMessage = {
             id: msgId,
             method: type.method,
@@ -142,7 +142,7 @@ export class Messenger implements MessengerAPI {
             params: params as any
         };
         this.vscode.postMessage(message);
-        return result;
+        return pending.result;
     }
 
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
@@ -187,12 +187,6 @@ export class Messenger implements MessengerAPI {
 export interface MessengerOptions {
     /** Whether to log any debug-level messages to the console. */
     debugLog?: boolean;
-}
-
-export interface RequestData {
-    resolve: (value: unknown) => void,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reject: (reason?: any) => void
 }
 
 function participantToString(participant: MessageParticipant): string {

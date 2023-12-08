@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import {
     equalParticipants, HOST_EXTENSION, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
     isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
-    NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError,
+    NotificationMessage, NotificationType, PendingRequest, RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
@@ -23,7 +23,8 @@ export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
 
-    protected readonly requests: Map<string, RequestData> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected readonly requests: Map<string, PendingRequest<any>> = new Map();
 
     protected readonly eventListeners: Map<(event: MessengerEvent) => void, DiagnosticOptions | undefined> = new Map();
 
@@ -330,9 +331,8 @@ export class Messenger implements MessengerAPI {
         }
 
         const msgId = this.createMsgId();
-        const result = new Promise<R>((resolve, reject) => {
-            this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
-        });
+        const pendingRequest = new PendingRequest<R>();
+        this.requests.set(msgId, pendingRequest);
         const message: RequestMessage = {
             id: msgId,
             method: type.method,
@@ -348,7 +348,7 @@ export class Messenger implements MessengerAPI {
             this.requests.get(msgId)?.reject(new Error(`Failed to send message to view: ${participantToString(receiver)}`));
             this.requests.delete(msgId);
         }
-        return result;
+        return pendingRequest.result;
     }
 
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
@@ -522,12 +522,6 @@ export interface MessengerOptions {
     debugLog?: boolean;
 }
 
-export interface RequestData {
-    resolve: (value: unknown) => void,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reject: (reason?: any) => void
-}
-
 export interface ViewData {
     id: string
     container: ViewContainer
@@ -536,8 +530,10 @@ export interface ViewData {
 
 export interface ViewOptions {
     /**
-     * Methods to be received by the webview when corresponding notifications are sent with
-     * a `broadcast` type. If omitted, no broadcast notifications will be received.
+     * Specifies a list of methods that the webview should receive when corresponding notifications are sent with a `broadcast` type.
+     * When a notification corresponding to any of the listed methods is broadcasted, the webview will be notified.
+     * If this option is omitted or set to `undefined`, the webview will not receive any broadcast notifications.
+     * The default is `undefined`.
      */
     broadcastMethods?: string[]
 }

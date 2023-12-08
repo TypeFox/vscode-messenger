@@ -181,3 +181,17 @@ export interface MessengerAPI {
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
 }
+
+/**
+ *  Deferred promise that can be resolved or rejected later.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class PendingRequest<R = any> {
+    resolve: (value: R) => void;
+    reject: (reason?: unknown) => void;
+
+    result = new Promise<R>((resolve, reject) => {
+        this.resolve = (arg) => resolve(arg);
+        this.reject = (err) => reject(err);
+    });
+}
