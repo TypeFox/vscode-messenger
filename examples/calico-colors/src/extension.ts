@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	// Diagnostic registration
-	const diagnostics = messenger.diagnosticApi({ withParameterData: true });
+	const diagnostics = messenger.diagnosticApi({ withParameterData: true, withResponseData: true });
 	return {
 		...diagnostics,
 		addEventListener: (listener) => {

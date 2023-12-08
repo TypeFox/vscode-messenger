@@ -106,9 +106,9 @@ export function Diagram(props: DiagramProps): JSX.Element {
 
     function toParticleColor(type: string | undefined): string {
         switch (type) {
-            case 'request': return '#3794ff';
-            case 'response': return '#487e02';
-            case 'notification': return '#cca700';
+            case 'request': return '#0088ff';
+            case 'response': return '#27ba10';
+            case 'notification': return '#ebe809';
             default: return '';
         }
     }
@@ -134,10 +134,11 @@ export function Diagram(props: DiagramProps): JSX.Element {
             const initiateParticle = (linkStr: string) => {
                 const linkObj = graphData.links.find(link => linkStr === linkId(link));
                 if (linkObj) {
-
                     setTimeout(() => {
-                        particleSize = 4;
+                        particleSize = 12;
                         particleColor = toParticleColor(highlight.type);
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (linkObj as unknown as any).color = particleColor;
                         diagramRef.current?.emitParticle(linkObj);
                     }, index * 600);
                 }
@@ -159,8 +160,9 @@ export function Diagram(props: DiagramProps): JSX.Element {
         nodeLabel="shortName"
         linkAutoColorBy="name"
         linkDirectionalParticles={particleSize}
-        linkDirectionalParticleSpeed={0.01}
+        linkDirectionalParticleSpeed={0.02}
         linkDirectionalParticleColor={particleColor}
+        linkWidth={ (link)=>  (link.target as NodeObject)?.id === HOST_EXTENSION_NAME ? 1 : 3}
         nodeCanvasObject={(rawNode, ctx, _globalScale) => {
             rawNode.vx = 10;
             rawNode.vy = 10;
@@ -188,11 +190,15 @@ function paintNode(rawNode: NodeObject, color: string, ctx: CanvasRenderingConte
         const circleData = { x: node.x, y: node.y, radius: node.outdated ? radius - 3 : radius };
         ctx.arc(circleData.x, circleData.y, circleData.radius, 0, 2 * Math.PI);
         ctx.fill();
+        ctx.setLineDash([]);
+        ctx.lineWidth = 0.3;
+        ctx.strokeStyle = '#888888';
+        ctx.stroke();
         ctx.closePath();
 
         if (node.outdated) {
-            ctx.setLineDash([1, 1]);
             ctx.beginPath();
+            ctx.setLineDash([1, 1]);
             ctx.strokeStyle = '#aabbbb';
             ctx.arc(circleData.x, circleData.y, circleData.radius + 1, 0, 2 * Math.PI);
             ctx.stroke();
