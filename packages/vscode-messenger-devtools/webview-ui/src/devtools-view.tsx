@@ -6,7 +6,7 @@ import 'ag-grid-community/dist/styles/ag-theme-alpine-dark.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
 import React from 'react';
 import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
-import { BROADCAST, HOST_EXTENSION } from 'vscode-messenger-common';
+import { BROADCAST, HOST_EXTENSION, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import '../node_modules/@vscode/codicons/dist/codicon.css';
@@ -16,6 +16,19 @@ import { EventTable } from './components/event-table';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
 import { DevtoolsComponentState, restoreState, storeState, vsCodeApi } from './utilities/view-state';
+
+type DataEvent = {
+    extension: string;
+    event: MessengerEvent;
+};
+
+const PushDataNotification: NotificationType<DataEvent>= {
+    method: 'pushData'
+};
+
+const ExtensionListRequest: RequestType<boolean, ExtensionData[]>= {
+    method: 'extensionList'
+};
 
 export interface ExtensionData {
     id: string
@@ -46,7 +59,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         };
         this.eventTable = new EventTable({ gridRowSelected: (e) => this.gridRowSelected(e) });
         this.messenger = new Messenger(vsCodeApi, { debugLog: true });
-        this.messenger.onNotification<{ extension: string, event: ExtendedMessengerEvent }>({ method: 'pushData' }, e => this.handleDataPush(e));
+        this.messenger.onNotification(PushDataNotification, event => this.handleDataPush(event));
         this.messenger.start();
         this.fillExtensionsList(false).then(() => {
             if (this.state.selectedExtension === '' && this.state.datasetSrc.size > 0) {
@@ -162,7 +175,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         );
     }
 
-    private handleDataPush(dataEvent: { extension: string, event: ExtendedMessengerEvent }): void {
+    private handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent }): void {
         if (!this.state.datasetSrc.has(dataEvent.extension)) {
             this.updateExtensionData({ id: dataEvent.extension, name: '', active: true, exportsDiagnosticApi: true, events: [] });
         }
@@ -230,7 +243,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     async fillExtensionsList(refresh: boolean): Promise<void> {
-        const extensions = await this.messenger.sendRequest<{ refresh: boolean }, ExtensionData[]>({ method: 'extensionList' }, HOST_EXTENSION, { refresh });
+        const extensions = await this.messenger.sendRequest(ExtensionListRequest, HOST_EXTENSION, refresh);
         extensions.forEach(ext => this.updateExtensionData(ext));
         this.updateState(this.state, true);
     }
