@@ -176,6 +176,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                         title={
                             'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
                         }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
+                    <span className='info-param-name'>Pending Req.:</span>
+                    <VSCodeBadge className='ext-info-badge'
+                        title='Number of pending (incoming + outgoing) requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
 
                     <span className='info-param-name'>Events:</span>
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>

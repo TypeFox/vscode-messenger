@@ -147,13 +147,13 @@ export type RequestType<P, R> = {
     /**
      * Used to ensure correct typing. Clients must not use this property
      */
-    readonly _?: [P,R]
+    readonly _?: [P, R]
 };
 
 /**
  * Function for handling incoming requests.
  */
-export type RequestHandler<P, R> = (params: P, sender: MessageParticipant) => HandlerResult<R>;
+export type RequestHandler<P, R> = (params: P, sender: MessageParticipant, cancelIndicator: CancelIndicator) => HandlerResult<R>;
 export type HandlerResult<R> = R | Promise<R>;
 
 /**
@@ -176,7 +176,7 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R>
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: Cancelable): Promise<R>
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
@@ -194,4 +194,65 @@ export class PendingRequest<R = any> {
         this.resolve = (arg) => resolve(arg);
         this.reject = (err) => reject(err);
     });
+}
+
+/**
+ * Interface that allows to check for cancellation and
+ * set a listener that is called when the request is canceled.
+ */
+export interface CancelIndicator {
+    isCanceled(): boolean;
+    onCancel: ((reason: string) => void) | undefined;
+}
+
+/**
+* Implementation of the CancelIndicator interface.
+* Allows to trigger cancelation.
+*/
+export class Cancelable implements CancelIndicator {
+    private canceled = false;
+
+    public cancel(reason: string): void {
+        if (this.canceled) {
+            throw new Error('Request already canceled');
+        }
+        this.canceled = true;
+        this.onCancel?.(reason);
+    }
+
+    public isCanceled(): boolean {
+        return this.canceled;
+    }
+
+    public onCancel: ((reason: string) => void) | undefined;
+}
+
+const cancelRequestMethod = '$cancelRequest';
+
+/**
+ * Internal message type for canceling requests.
+ */
+export type CancelRequestMessage = NotificationMessage & { method: typeof cancelRequestMethod, params: string };
+
+/**
+ * Checks if the given message is a cancel request.
+ * @param msg  message to check
+ * @returns  true if the message is a cancel request
+ */
+export function isCancelRequestNotification(msg: Message): msg is CancelRequestMessage {
+    return isNotificationMessage(msg) && msg.method === cancelRequestMethod;
+}
+
+/**
+ * Creates a cancel request message.
+ * @param receiver receiver of the cancel request
+ * @param msgId id of the request to cancel
+ * @returns  new cancel request message
+ */
+export function createCancelRequestMessage(receiver: MessageParticipant, msgId: string): CancelRequestMessage {
+    return {
+        method: cancelRequestMethod,
+        receiver,
+        params: msgId
+    };
 }
