@@ -6,11 +6,11 @@
 
 import * as vscode from 'vscode';
 import {
-    Cancelable,
+    CancellationTokenImpl,
     createCancelRequestMessage,
     equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
     isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
-    NotificationMessage, NotificationType, PendingRequest, RequestHandler, RequestMessage, RequestType, ResponseError,
+    NotificationMessage, NotificationType, DeferredRequest, RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
@@ -26,8 +26,8 @@ export class Messenger implements MessengerAPI {
     protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    protected readonly requests: Map<string, PendingRequest<any>> = new Map();
-    protected readonly pendingHandlers: Map<string, Cancelable> = new Map();
+    protected readonly requests: Map<string, DeferredRequest<any>> = new Map();
+    protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly eventListeners: Map<(event: MessengerEvent) => void, DiagnosticOptions | undefined> = new Map();
 
@@ -181,7 +181,7 @@ export class Messenger implements MessengerAPI {
             return this.sendErrorResponse('Multiple matching request handlers', msg, responseCallback);
         }
 
-        const cancelable = new Cancelable();
+        const cancelable = new CancellationTokenImpl();
         try {
             this.pendingHandlers.set(msg.id, cancelable);
             const result = await filtered[0].handler(msg.params, msg.sender!, cancelable);
@@ -247,7 +247,7 @@ export class Messenger implements MessengerAPI {
                 const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
                 if (filtered.length > 0) {
                     // TODO No need to cancel a notification
-                    await Promise.all(filtered.map(reg => reg.handler(msg.params, msg.sender!, new Cancelable())));
+                    await Promise.all(filtered.map(reg => reg.handler(msg.params, msg.sender!, new CancellationTokenImpl())));
                 }
             } else if (msg.receiver.type !== 'broadcast') {
                 this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
@@ -317,7 +317,7 @@ export class Messenger implements MessengerAPI {
         };
     }
 
-    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: Cancelable): Promise<R> {
+    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R> {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
         } else if (receiver.type === 'broadcast') {
@@ -346,14 +346,14 @@ export class Messenger implements MessengerAPI {
         throw new Error(`Invalid receiver: ${JSON.stringify(receiver)}`);
     }
 
-    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer, cancelable?: Cancelable): Promise<R> {
+    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer, cancelable?: CancellationTokenImpl): Promise<R> {
         // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
         if (!view.visible && this.options.ignoreHiddenViews) {
             return Promise.reject(new Error(`Skipped request for hidden view: ${participantToString(receiver)}`));
         }
 
         const msgId = this.createMsgId();
-        const pendingRequest = new PendingRequest<R>();
+        const pendingRequest = new DeferredRequest<R>();
         this.requests.set(msgId, pendingRequest);
         console.warn('Added request: ' + msgId);
         if (cancelable) {

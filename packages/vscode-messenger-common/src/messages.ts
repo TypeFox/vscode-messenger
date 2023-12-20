@@ -153,7 +153,7 @@ export type RequestType<P, R> = {
 /**
  * Function for handling incoming requests.
  */
-export type RequestHandler<P, R> = (params: P, sender: MessageParticipant, cancelIndicator: CancelIndicator) => HandlerResult<R>;
+export type RequestHandler<P, R> = (params: P, sender: MessageParticipant, cancellationToken: CancellationToken) => HandlerResult<R>;
 export type HandlerResult<R> = R | Promise<R>;
 
 /**
@@ -176,7 +176,7 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: Cancelable): Promise<R>
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R>
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
@@ -186,7 +186,7 @@ export interface MessengerAPI {
  *  Deferred promise that can be resolved or rejected later.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class PendingRequest<R = any> {
+export class DeferredRequest<R = any> {
     resolve: (value: R) => void;
     reject: (reason?: unknown) => void;
 
@@ -200,16 +200,16 @@ export class PendingRequest<R = any> {
  * Interface that allows to check for cancellation and
  * set a listener that is called when the request is canceled.
  */
-export interface CancelIndicator {
+export interface CancellationToken {
     isCanceled(): boolean;
     onCancel: ((reason: string) => void) | undefined;
 }
 
 /**
-* Implementation of the CancelIndicator interface.
+* Implementation of the CancellationToken interface.
 * Allows to trigger cancelation.
 */
-export class Cancelable implements CancelIndicator {
+export class CancellationTokenImpl implements CancellationToken {
     private canceled = false;
 
     public cancel(reason: string): void {

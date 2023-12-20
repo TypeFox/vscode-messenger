@@ -5,21 +5,24 @@
  ******************************************************************************/
 
 import {
-    Cancelable,
+    CancellationTokenImpl,
+    DeferredRequest,
+    JsonAny, Message, MessageParticipant, MessengerAPI,
+    NotificationHandler, NotificationMessage, NotificationType,
+    RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage,
     createCancelRequestMessage,
     isCancelRequestNotification,
     isMessage,
-    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI,
-    NotificationHandler, NotificationMessage, NotificationType, PendingRequest, RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
+    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant
 } from 'vscode-messenger-common';
-import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
+import { VsCodeApi, acquireVsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    protected readonly requests: Map<string, PendingRequest<any>> = new Map();
-    protected readonly pendingHandlers: Map<string, Cancelable> = new Map();
+    protected readonly requests: Map<string, DeferredRequest<any>> = new Map();
+    protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly vscode: VsCodeApi;
 
@@ -67,7 +70,7 @@ export class Messenger implements MessengerAPI {
             this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
             const handler = this.handlerRegistry.get(msg.method);
             if (handler) {
-                const cancelable = new Cancelable();
+                const cancelable = new CancellationTokenImpl();
                 try {
                     this.pendingHandlers.set(msg.id, cancelable);
                     const result = await handler(msg.params, msg.sender!, cancelable);
@@ -114,7 +117,7 @@ export class Messenger implements MessengerAPI {
             } else {
                 const handler = this.handlerRegistry.get(msg.method);
                 if (handler) {
-                    handler(msg.params, msg.sender!, new Cancelable());
+                    handler(msg.params, msg.sender!, new CancellationTokenImpl());
                 } else if (msg.receiver.type !== 'broadcast') {
                     this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
                 }
@@ -147,13 +150,13 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: Cancelable): Promise<R> {
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
         }
 
         const msgId = this.createMsgId();
-        const pending = new PendingRequest<R>();
+        const pending = new DeferredRequest<R>();
         this.requests.set(msgId, pending);
         if (cancelable) {
             cancelable.onCancel = (reason) => {
