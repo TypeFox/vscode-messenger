@@ -81,7 +81,7 @@ export class Messenger implements MessengerAPI {
                     };
                     this.vscode.postMessage(response);
                 } catch (error) {
-                    if (cancelable.isCanceled()) {
+                    if (cancelable.isCanceled) {
                         // Don't report the error if request was canceled.
                         return;
                     }

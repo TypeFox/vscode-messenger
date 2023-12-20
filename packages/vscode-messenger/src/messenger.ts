@@ -196,7 +196,7 @@ export class Messenger implements MessengerAPI {
                 this.log(`Failed to send result message: ${participantToString(response.receiver)}`, 'error');
             }
         } catch (error) {
-            if (cancelable?.isCanceled()) {
+            if (cancelable?.isCanceled) {
                 // Don't report the error if request was canceled.
                 return;
             }

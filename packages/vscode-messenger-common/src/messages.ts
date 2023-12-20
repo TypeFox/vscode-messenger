@@ -201,7 +201,7 @@ export class DeferredRequest<R = any> {
  * set a listener that is called when the request is canceled.
  */
 export interface CancellationToken {
-    isCanceled(): boolean;
+    readonly isCanceled: boolean;
     onCancel: ((reason: string) => void) | undefined;
 }
 
@@ -220,7 +220,7 @@ export class CancellationTokenImpl implements CancellationToken {
         this.onCancel?.(reason);
     }
 
-    public isCanceled(): boolean {
+    get isCanceled(): boolean {
         return this.canceled;
     }
 
