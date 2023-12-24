@@ -28,8 +28,6 @@ describe('Webview Messenger', () => {
     function postWindowMsg(obj: any) {
         if (messageListeners.length === 0) {
             throw new Error('Messenger is not started.');
-        } else if (messageListeners.length > 1) {
-            console.warn('More than one Messenger is active.');
         }
         for (const listener of messageListeners) {
             listener({ data: obj });
@@ -131,7 +129,7 @@ describe('Webview Messenger', () => {
                     resolve(r);
                 }, 50);
             });
-            return 'handled:' +  await promise;
+            return 'handled:' + await promise;
         }).start();
         const expectation = new Promise<unknown>((resolve, reject) => {
             vsCodeApi.onReceivedMessage = resolve;
@@ -153,6 +151,7 @@ describe('Webview Messenger', () => {
 
     test('Handle request with no handler', async () => {
         new Messenger(vsCodeApi).start();
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
         const expectation = new Promise<unknown>((resolve, reject) => {
             vsCodeApi.onReceivedMessage = resolve;
         });
@@ -171,6 +170,7 @@ describe('Webview Messenger', () => {
                 message: 'Unknown method: stringRequest'
             }
         });
+        warn.mockRestore();
     });
 
     test('Handle notification from an extension', async () => {
@@ -195,6 +195,9 @@ describe('Webview Messenger', () => {
     });
 
     test('Check unique msg id', () => {
+        // disable warn logging for untracked messages
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
+
         const messenger1 = new Messenger(vsCodeApi);
         messenger1.start();
         const messenger2 = new Messenger(vsCodeApi);
@@ -209,6 +212,9 @@ describe('Webview Messenger', () => {
         expect(message2.id.startsWith('req_0_')).toBeTruthy();
 
         expect(message1.id).not.toBe(message2.id);
+
+        // re-enable console warn
+        warn.mockRestore();
     });
 
     test('Check no msg id for notifications', () => {

@@ -355,23 +355,19 @@ export class Messenger implements MessengerAPI {
         const msgId = this.createMsgId();
         const pendingRequest = new DeferredRequest<R>();
         this.requests.set(msgId, pendingRequest);
-        console.warn('Added request: ' + msgId);
         if (cancelable) {
             cancelable.onCancel = (reason) => {
                 // Send cancel message for pending request
-                view.webview.postMessage(createCancelRequestMessage(receiver, msgId))
-                    .then((posted) => {
-                        if (!posted) {
-                            this.log(`Failed to send cancel message to view: ${participantToString(receiver)}`, 'error');
-                        }
-                    });
-                pendingRequest.reject(reason);
+                view.webview.postMessage(createCancelRequestMessage(receiver, msgId));
+                pendingRequest.reject(new Error(reason));
                 this.requests.delete(msgId);
             };
             pendingRequest.result.finally(() => {
                 // Request finished, nothing to do on cancel.
                 cancelable.onCancel = undefined;
-            });
+            }).catch((err) =>
+                this.log(`Pending request rejected: ${String(err)}`)
+            );
         }
         const message: RequestMessage = {
             id: msgId,

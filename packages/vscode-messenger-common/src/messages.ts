@@ -214,7 +214,7 @@ export class CancellationTokenImpl implements CancellationToken {
 
     public cancel(reason: string): void {
         if (this.canceled) {
-            throw new Error('Request already canceled');
+            throw new Error('Request was already canceled.');
         }
         this.canceled = true;
         this.onCancel?.(reason);

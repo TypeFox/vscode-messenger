@@ -3,14 +3,16 @@
     "parser": "@typescript-eslint/parser",
     "extends": [
         "eslint:recommended",
-        "plugin:@typescript-eslint/recommended"
+        "plugin:@typescript-eslint/recommended",
+        "plugin:promise/recommended"
     ],
     "parserOptions": {
         "ecmaVersion": 6,
         "sourceType": "module"
     },
     "plugins": [
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "promise"
     ],
     "ignorePatterns": [
         "**/{node_modules,lib,bin}"
