@@ -7,9 +7,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
-import { Messenger, VsCodeApi } from '../src';
 import crypto from 'crypto';
+import { CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+import { Messenger, VsCodeApi } from '../src';
 
 Object.defineProperty(global.self, 'crypto', {
     value: {
@@ -20,6 +20,8 @@ Object.defineProperty(global.self, 'crypto', {
 
 const stringNotification: NotificationType<string> = { method: 'stringNotification' };
 const stringRequest: RequestType<string, string> = { method: 'stringRequest' };
+
+const FORCE_HANDLER_TO_WAIT_PARAM = 'wait';
 
 describe('Webview Messenger', () => {
     let vsCodeApi: VsCodeApi & { messages: any[], onReceivedMessage: (message: any) => void };
@@ -44,15 +46,29 @@ describe('Webview Messenger', () => {
             }
         }) as any;
         vsCodeApi = {
-            postMessage: (message: Message) => {
+            postMessage: async (message: Message) => {
                 vsCodeApi.messages.push(message);
                 if (isRequestMessage(message)) {
-                    postWindowMsg({
+                    const postMsg = () => postWindowMsg({
                         sender: HOST_EXTENSION,
                         receiver: { type: 'webview', webviewId: 'test-view' },
                         id: message.id,
                         result: 'result:' + message.params
                     });
+
+                    if (message.params === FORCE_HANDLER_TO_WAIT_PARAM) {
+                        let cleanUp: any;
+                        await new Promise((resolve, reject) => {
+                            cleanUp = reject;
+                            setTimeout(() => {
+                                postMsg();
+                                resolve('resolved');
+                            }, 500);
+                        }).catch((_error) => clearTimeout(cleanUp));
+                    } else {
+                        postMsg();
+                    }
+
                 }
                 vsCodeApi.onReceivedMessage(message);
                 return;
@@ -127,7 +143,7 @@ describe('Webview Messenger', () => {
             const promise = new Promise<string>((resolve, reject) => {
                 setTimeout(() => {
                     resolve(r);
-                }, 50);
+                }, 100);
             });
             return 'handled:' + await promise;
         }).start();
@@ -143,6 +159,7 @@ describe('Webview Messenger', () => {
             method: 'stringRequest',
             params: 'ping'
         });
+
         expect(await expectation).toMatchObject({
             id: 'request_id',
             result: 'handled:ping'
@@ -245,5 +262,57 @@ describe('Webview Messenger', () => {
                 message: 'Failed to handle request from: {"type":"extension"}'
             }
         });
+    });
+
+    test('Cancel request-handler', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        const cancel = new CancellationTokenImpl();
+        setTimeout(() =>
+            cancel.cancel('Test cancel'), 100);
+
+        await messenger.sendRequest(stringRequest, HOST_EXTENSION, FORCE_HANDLER_TO_WAIT_PARAM, cancel)
+            .then(() => {
+                throw new Error('Expected to throw error');
+            }).catch((error) => {
+                expect(error.message).toBe('Test cancel');
+            });
+    });
+
+    test('Handle cancel request event', async () => {
+        let started = false;
+        let canceled = false;
+        let handled = false;
+        new Messenger(vsCodeApi).onRequest(stringRequest, async (param: string, sender, cancelation) => {
+            let timeOut: any;
+            cancelation.onCancel = () => {
+                clearTimeout(timeOut);
+                canceled = true;
+            };
+            started = true;
+            // simulate work in progress
+            await new Promise<void>(resolve => {
+                timeOut = setTimeout(resolve, 1000);
+            });
+            handled = true;
+            return 'handled:' + param;
+        }).start();
+
+        // simulate extension request
+        postWindowMsg({
+            sender: HOST_EXTENSION,
+            receiver: { type: 'webview', webviewId: 'test-view' },
+            id: 'request_id',
+            method: 'stringRequest',
+            params: 'ping'
+        });
+        // send cancel request
+        postWindowMsg(createCancelRequestMessage({ type: 'webview', webviewId: 'test-view' }, 'request_id'));
+
+        expect(started).toBe(true);
+        expect(canceled).toBe(true);
+        expect(handled).toBe(false);
+        expect(vsCodeApi.messages.length).toBe(0); // receiver should not receive any message
     });
 });

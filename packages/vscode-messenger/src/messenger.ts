@@ -88,8 +88,7 @@ export class Messenger implements MessengerAPI {
                 return this.processMessage(msg, res => {
                     this.notifyEventListeners(res);
                     return view.webview.postMessage(res);
-                })
-                    .catch(err => this.log(String(err), 'error'));
+                }).catch(err => this.log(String(err), 'error'));
             }
         });
 

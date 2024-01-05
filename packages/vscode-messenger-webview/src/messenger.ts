@@ -67,76 +67,88 @@ export class Messenger implements MessengerAPI {
             return;
         }
         if (isRequestMessage(msg)) {
-            this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
+            await this.processRequestMessage(msg);
+        } else if (isNotificationMessage(msg)) {
+            await this.processNotificationMessage(msg);
+        } else if (isResponseMessage(msg)) {
+            await this.processResponseMessage(msg);
+        } else {
+            this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
+        }
+    }
+
+    protected async processResponseMessage(msg: ResponseMessage) {
+        this.log(`View received Response message: ${msg.id}`);
+        const request = this.requests.get(msg.id);
+        if (request) {
+            if (msg.error) {
+                request.reject(msg.error);
+            } else {
+                request.resolve(msg.result);
+            }
+            this.requests.delete(msg.id);
+        } else {
+            this.log(`Received response for untracked message id: ${msg.id} (sender: ${participantToString(msg.sender!)})`, 'warn');
+        }
+    }
+
+    protected async processNotificationMessage(msg: NotificationMessage) {
+        this.log(`View received Notification message: ${msg.method}`);
+        if (isCancelRequestNotification(msg)) {
+            const cancelable = this.pendingHandlers.get(msg.params);
+            if (cancelable) {
+                cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
+            } else {
+                this.log(`Received cancel notification for missing cancelable. ${msg.params}`, 'warn');
+            }
+        } else {
             const handler = this.handlerRegistry.get(msg.method);
             if (handler) {
-                const cancelable = new CancellationTokenImpl();
-                try {
-                    this.pendingHandlers.set(msg.id, cancelable);
-                    const result = await handler(msg.params, msg.sender!, cancelable);
-                    const response: ResponseMessage = {
-                        id: msg.id,
-                        receiver: msg.sender!,
-                        result: result as JsonAny
-                    };
-                    this.vscode.postMessage(response);
-                } catch (error) {
-                    if (cancelable.isCanceled) {
-                        // Don't report the error if request was canceled.
-                        return;
-                    }
-                    const response: ResponseMessage = {
-                        id: msg.id,
-                        receiver: msg.sender!,
-                        error: this.createResponseError(error)
-                    };
-                    this.vscode.postMessage(response);
-                } finally {
-                    this.pendingHandlers.delete(msg.id);
-                }
-            } else {
-                this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+                handler(msg.params, msg.sender!, new CancellationTokenImpl());
+            } else if (msg.receiver.type !== 'broadcast') {
+                this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
+            }
+        }
+    }
+
+    protected async processRequestMessage(msg: RequestMessage) {
+        this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
+        const handler = this.handlerRegistry.get(msg.method);
+        if (handler) {
+            const cancelable = new CancellationTokenImpl();
+            try {
+                this.pendingHandlers.set(msg.id, cancelable);
+                const result = await handler(msg.params, msg.sender!, cancelable);
                 const response: ResponseMessage = {
                     id: msg.id,
                     receiver: msg.sender!,
-                    error: {
-                        message: `Unknown method: ${msg.method}`
-                    }
+                    result: result as JsonAny
                 };
                 this.vscode.postMessage(response);
-            }
-        } else if (isNotificationMessage(msg)) {
-            this.log(`View received Notification message: ${msg.method}`);
-            if (isCancelRequestNotification(msg)) {
-                const cancelable = this.pendingHandlers.get(msg.params);
-                if (cancelable) {
-                    cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
-                } else {
-                    this.log(`Received cancel notification for missing cancelable. ${msg.params}`, 'warn');
+            } catch (error) {
+                if (cancelable.isCanceled) {
+                    // Don't report the error if request was canceled.
+                    return;
                 }
-            } else {
-                const handler = this.handlerRegistry.get(msg.method);
-                if (handler) {
-                    handler(msg.params, msg.sender!, new CancellationTokenImpl());
-                } else if (msg.receiver.type !== 'broadcast') {
-                    this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
-                }
-            }
-        } else if (isResponseMessage(msg)) {
-            this.log(`View received Response message: ${msg.id}`);
-            const request = this.requests.get(msg.id);
-            if (request) {
-                if (msg.error) {
-                    request.reject(msg.error);
-                } else {
-                    request.resolve(msg.result);
-                }
-                this.requests.delete(msg.id);
-            } else {
-                this.log(`Received response for untracked message id: ${msg.id} (sender: ${participantToString(msg.sender!)})`, 'warn');
+                const response: ResponseMessage = {
+                    id: msg.id,
+                    receiver: msg.sender!,
+                    error: this.createResponseError(error)
+                };
+                this.vscode.postMessage(response);
+            } finally {
+                this.pendingHandlers.delete(msg.id);
             }
         } else {
-            this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
+            this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+            const response: ResponseMessage = {
+                id: msg.id,
+                receiver: msg.sender!,
+                error: {
+                    message: `Unknown method: ${msg.method}`
+                }
+            };
+            this.vscode.postMessage(response);
         }
     }
 
@@ -169,7 +181,7 @@ export class Messenger implements MessengerAPI {
                 // Request finished, nothing to do on cancel.
                 cancelable.onCancel = undefined;
             }).catch((err) =>
-                this.log(`Pending request rejected: ${String(err)}`, 'warn')
+                this.log(`Pending request rejected: ${String(err)}`)
             );
         }
         const message: RequestMessage = {

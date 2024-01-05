@@ -7,13 +7,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { BROADCAST, CancellationTokenImpl, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 import { MessengerEvent } from '../src/diagnostic-api';
 import { Messenger } from '../src/messenger';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
 const VIEW_TYPE_2 = 'test.view.type.2';
-const FORCE_HANDLER_TO_WAIT_PARAM = 'wait:2sec';
+const FORCE_HANDLER_TO_WAIT_PARAM = 'wait';
 
 const simpleNotification: NotificationType<string> = { method: 'notification' };
 const simpleRequest: RequestType<string, string> = { method: 'request' };
@@ -29,19 +29,20 @@ function createWebview(viewType: string) {
             postMessage: async (message: any): Promise<boolean> => {
                 view.messages.push(message);
                 if (isRequestMessage(message)) {
+                    const callback = () => view.messageCallback({ receiver: view.responseReceiver, id: message.id, result: 'result:' + message.params });
                     if (message.params === FORCE_HANDLER_TO_WAIT_PARAM) {
+                        let timeOut: NodeJS.Timeout;
                         await new Promise((resolve, reject) => {
                             view.handlerReject = reject;
-                            setTimeout(() => {
+                            timeOut = setTimeout(() => {
                                 if (view.messageCallback) {
-                                    view.messageCallback({ receiver: view.responseReceiver, id: message.id, result: 'result:' + message.params });
+                                    callback();
                                 }
                                 resolve('resolved');
                             }, 500);
-                        }).catch((error) => clearTimeout(view.handlerReject));
-                        await view.handler;
+                        }).catch((error) => clearTimeout(timeOut));
                     } else {
-                        view.messageCallback({ receiver: view.responseReceiver, id: message.id, result: 'result:' + message.params });
+                        callback();
                     }
                 } else if (isCancelRequestNotification(message)) {
                     view.handlerReject('Canceled by CancelRequestNotification');
@@ -520,6 +521,36 @@ describe('Extension Messenger', () => {
             }).catch((error) => {
                 expect(error.message).toBe('Test cancel');
             });
+    });
+
+    test('Handle cancel request', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        let started = false;
+        let handled = false;
+        messenger.onRequest(simpleRequest, async (params: string, sender, cancelation) => {
+            let timeOut: NodeJS.Timeout;
+            cancelation.onCancel = () => {
+                clearTimeout(timeOut);
+            };
+            started = true;
+            // simulate work in progress
+            await new Promise<void>(resolve => {
+                timeOut = setTimeout(resolve, 1000);
+            });
+            handled = true;
+            return 'handled:' + params;
+        });
+        // Simulate webview request
+        view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+
+        // Send cancel notification
+        const cancelMsg = createCancelRequestMessage(HOST_EXTENSION, 'fake_req_id');
+        await view1.messageCallback(cancelMsg);
+
+        expect(started).toBe(true);
+        expect(handled).toBe(false);
+        expect(view1.messages[0]).toBeUndefined(); // don't expect cancelation succeed
     });
 });
 
