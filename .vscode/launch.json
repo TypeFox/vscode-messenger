@@ -26,6 +26,7 @@
                 "${fileBasename}",
                 "--config=${workspaceFolder}/jest.config.json",
                 "--verbose",
+                "--detectOpenHandles",
                 "-i",
                 "--no-cache",
             ],

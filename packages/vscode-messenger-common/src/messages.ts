@@ -147,13 +147,13 @@ export type RequestType<P, R> = {
     /**
      * Used to ensure correct typing. Clients must not use this property
      */
-    readonly _?: [P,R]
+    readonly _?: [P, R]
 };
 
 /**
  * Function for handling incoming requests.
  */
-export type RequestHandler<P, R> = (params: P, sender: MessageParticipant) => HandlerResult<R>;
+export type RequestHandler<P, R> = (params: P, sender: MessageParticipant, cancellationToken: CancellationToken) => HandlerResult<R>;
 export type HandlerResult<R> = R | Promise<R>;
 
 /**
@@ -176,8 +176,91 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R>
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R>
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
+}
+
+/**
+ *  Deferred promise that can be resolved or rejected later.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class DeferredRequest<R = any> {
+    resolve: (value: R) => void;
+    reject: (reason?: unknown) => void;
+
+    result = new Promise<R>((resolve, reject) => {
+        this.resolve = (arg) => resolve(arg);
+        this.reject = (err) => reject(err);
+    });
+}
+
+/**
+ * Interface that allows to check for cancellation and
+ * set a listener that is called when the request is canceled.
+ */
+export interface CancellationToken {
+    readonly isCanceled: boolean;
+    addCancelListener(callBack: (reason: string) => void): void;
+}
+
+/**
+* Implementation of the CancellationToken interface.
+* Allows to trigger cancelation.
+*/
+export class CancellationTokenImpl implements CancellationToken {
+    private canceled = false;
+    private listeners: Array<((reason: string) => void)> = [];
+
+    public cancel(reason: string): void {
+        if (this.canceled) {
+            throw new Error('Request was already canceled.');
+        }
+        this.canceled = true;
+        this.listeners.forEach(callBack => callBack(reason));
+        this.clearCancelListeners();
+    }
+
+    get isCanceled(): boolean {
+        return this.canceled;
+    }
+
+    public addCancelListener(callBack: (reason: string) => void): void {
+        this.listeners.push(callBack);
+    }
+
+    public clearCancelListeners(): void {
+        this.listeners = [];
+    }
+}
+
+const cancelRequestMethod = '$cancelRequest';
+
+/**
+ * Internal message type for canceling requests.
+ */
+export type CancelRequestMessage = NotificationMessage & { method: typeof cancelRequestMethod, params: string };
+
+/**
+ * Checks if the given message is a cancel request.
+ * @param msg  message to check
+ * @returns  true if the message is a cancel request
+ */
+export function isCancelRequestNotification(msg: Message): msg is CancelRequestMessage {
+    return isNotificationMessage(msg) && msg.method === cancelRequestMethod;
+}
+
+/**
+ * Creates a cancel request message.
+ * @param receiver receiver of the cancel request
+ * @param msgId id of the request to cancel
+ * @returns  new cancel request message
+ */
+export function createCancelRequestMessage(receiver: MessageParticipant, msgId: string): CancelRequestMessage {
+    return {
+        method: cancelRequestMethod,
+        receiver,
+        params: msgId
+    };
 }
