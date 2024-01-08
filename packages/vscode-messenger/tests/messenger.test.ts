@@ -529,10 +529,10 @@ describe('Extension Messenger', () => {
         let started = false;
         let handled = false;
         messenger.onRequest(simpleRequest, async (params: string, sender, cancelation) => {
-            let timeOut: NodeJS.Timeout;
-            cancelation.onCancel = () => {
+            let timeOut: any;
+            cancelation.addCancelListener(() => {
                 clearTimeout(timeOut);
-            };
+            });
             started = true;
             // simulate work in progress
             await new Promise<void>(resolve => {

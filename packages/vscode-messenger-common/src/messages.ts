@@ -202,7 +202,7 @@ export class DeferredRequest<R = any> {
  */
 export interface CancellationToken {
     readonly isCanceled: boolean;
-    onCancel: ((reason: string) => void) | undefined;
+    addCancelListener(callBack: (reason: string) => void): void;
 }
 
 /**
@@ -211,20 +211,28 @@ export interface CancellationToken {
 */
 export class CancellationTokenImpl implements CancellationToken {
     private canceled = false;
+    private listeners: Array<((reason: string) => void)> = [];
 
     public cancel(reason: string): void {
         if (this.canceled) {
             throw new Error('Request was already canceled.');
         }
         this.canceled = true;
-        this.onCancel?.(reason);
+        this.listeners.forEach(callBack => callBack(reason));
+        this.clearCancelListeners();
     }
 
     get isCanceled(): boolean {
         return this.canceled;
     }
 
-    public onCancel: ((reason: string) => void) | undefined;
+    public addCancelListener(callBack: (reason: string) => void): void {
+        this.listeners.push(callBack);
+    }
+
+    public clearCancelListeners(): void {
+        this.listeners = [];
+    }
 }
 
 const cancelRequestMethod = '$cancelRequest';

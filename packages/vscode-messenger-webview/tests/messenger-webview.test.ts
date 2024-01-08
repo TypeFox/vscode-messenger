@@ -286,10 +286,10 @@ describe('Webview Messenger', () => {
         let handled = false;
         new Messenger(vsCodeApi).onRequest(stringRequest, async (param: string, sender, cancelation) => {
             let timeOut: any;
-            cancelation.onCancel = () => {
+            cancelation.addCancelListener(() => {
                 clearTimeout(timeOut);
                 canceled = true;
-            };
+            });
             started = true;
             // simulate work in progress
             await new Promise<void>(resolve => {

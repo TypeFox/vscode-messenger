@@ -72,7 +72,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             } else {
                 this.updateState(this.state, true);
             }
-        });
+            return;
+        }).catch(err => console.error(err));
 
     }
 

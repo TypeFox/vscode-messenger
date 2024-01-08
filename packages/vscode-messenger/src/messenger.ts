@@ -355,15 +355,15 @@ export class Messenger implements MessengerAPI {
         const pendingRequest = new DeferredRequest<R>();
         this.requests.set(msgId, pendingRequest);
         if (cancelable) {
-            cancelable.onCancel = (reason) => {
+            cancelable.addCancelListener((reason) => {
                 // Send cancel message for pending request
                 view.webview.postMessage(createCancelRequestMessage(receiver, msgId));
                 pendingRequest.reject(new Error(reason));
                 this.requests.delete(msgId);
-            };
+            });
             pendingRequest.result.finally(() => {
                 // Request finished, nothing to do on cancel.
-                cancelable.onCancel = undefined;
+                cancelable.clearCancelListeners();
             }).catch((err) =>
                 this.log(`Pending request rejected: ${String(err)}`)
             );
