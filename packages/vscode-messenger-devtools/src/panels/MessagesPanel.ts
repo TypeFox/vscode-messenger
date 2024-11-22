@@ -81,16 +81,16 @@ export class MessagesPanel {
     }
 
     /**
-   * Defines and returns the HTML that should be rendered within the webview panel.
-   *
-   * @remarks This is also the place where references to the React webview build files
-   * are created and inserted into the webview HTML.
-   *
-   * @param webview A reference to the extension webview
-   * @param extensionUri The URI of the directory containing the extension
-   * @returns A template string literal containing the HTML that should be
-   * rendered within the webview panel
-   */
+     * Defines and returns the HTML that should be rendered within the webview panel.
+     *
+     * @remarks This is also the place where references to the React webview build files
+     * are created and inserted into the webview HTML.
+     *
+     * @param webview A reference to the extension webview
+     * @param extensionUri The URI of the directory containing the extension
+     * @returns A template string literal containing the HTML that should be
+     * rendered within the webview panel
+     */
     private _getWebviewContent(webview: Webview, extensionUri: Uri) {
         // The CSS file from the React build output
         const stylesUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'index.css']);
