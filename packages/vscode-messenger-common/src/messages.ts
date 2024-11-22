@@ -176,7 +176,7 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R>
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R>
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
@@ -186,7 +186,7 @@ export interface MessengerAPI {
  *  Deferred promise that can be resolved or rejected later.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class DeferredRequest<R = any> {
+export class Deferred<R = any> {
     resolve: (value: R) => void;
     reject: (reason?: unknown) => void;
 
@@ -201,8 +201,8 @@ export class DeferredRequest<R = any> {
  * set a listener that is called when the request is canceled.
  */
 export interface CancellationToken {
-    readonly isCanceled: boolean;
-    addCancelListener(callBack: (reason: string) => void): void;
+    readonly isCancellationRequested: boolean;
+    onCancellationRequested(callBack: (reason: string) => void): void;
 }
 
 /**
@@ -222,11 +222,11 @@ export class CancellationTokenImpl implements CancellationToken {
         this.clearCancelListeners();
     }
 
-    get isCanceled(): boolean {
+    get isCancellationRequested(): boolean {
         return this.canceled;
     }
 
-    public addCancelListener(callBack: (reason: string) => void): void {
+    public onCancellationRequested(callBack: (reason: string) => void): void {
         this.listeners.push(callBack);
     }
 
@@ -235,12 +235,23 @@ export class CancellationTokenImpl implements CancellationToken {
     }
 }
 
-const cancelRequestMethod = '$cancelRequest';
+const cancelRequestMethod = '$/cancelRequest';
 
 /**
  * Internal message type for canceling requests.
  */
-export type CancelRequestMessage = NotificationMessage & { method: typeof cancelRequestMethod, params: string };
+export type CancelRequestMessage = NotificationMessage & { method: typeof cancelRequestMethod, params: CancelParams };
+
+/**
+ * Parameters for canceling a request.
+ * @param msgId id of the request to cancel
+ */
+export interface CancelParams {
+    /**
+     * msgId id of the request to cancel
+     */
+    msgId: string;
+}
 
 /**
  * Checks if the given message is a cancel request.
@@ -254,13 +265,13 @@ export function isCancelRequestNotification(msg: Message): msg is CancelRequestM
 /**
  * Creates a cancel request message.
  * @param receiver receiver of the cancel request
- * @param msgId id of the request to cancel
+ * @param params id of the request to cancel
  * @returns  new cancel request message
  */
-export function createCancelRequestMessage(receiver: MessageParticipant, msgId: string): CancelRequestMessage {
+export function createCancelRequestMessage(receiver: MessageParticipant, params: CancelParams): CancelRequestMessage {
     return {
         method: cancelRequestMethod,
         receiver,
-        params: msgId
+        params: { msgId: params.msgId }
     };
 }

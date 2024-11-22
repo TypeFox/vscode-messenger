@@ -530,7 +530,7 @@ describe('Extension Messenger', () => {
         let handled = false;
         messenger.onRequest(simpleRequest, async (params: string, sender, cancelation) => {
             let timeOut: any;
-            cancelation.addCancelListener(() => {
+            cancelation.onCancellationRequested(() => {
                 clearTimeout(timeOut);
             });
             started = true;
@@ -545,7 +545,7 @@ describe('Extension Messenger', () => {
         view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
 
         // Send cancel notification
-        const cancelMsg = createCancelRequestMessage(HOST_EXTENSION, 'fake_req_id');
+        const cancelMsg = createCancelRequestMessage(HOST_EXTENSION, { msgId: 'fake_req_id' });
         await view1.messageCallback(cancelMsg);
 
         expect(started).toBe(true);

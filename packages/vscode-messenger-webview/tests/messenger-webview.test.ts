@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import { CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 
-Object.defineProperty(global.self, 'crypto', {
+Object.defineProperty(globalThis, 'crypto', {
     value: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getRandomValues: (arr: string | any[]) => crypto.randomBytes(arr.length)
@@ -37,8 +37,9 @@ describe('Webview Messenger', () => {
     }
 
     beforeAll(() => {
-        const addEventListener = window.addEventListener;
-        window.addEventListener = ((type: string, listener: (event: any) => void, options: any) => {
+        const globWindow = (global as any).window;
+        const addEventListener = globWindow.addEventListener;
+        globWindow.addEventListener = ((type: string, listener: (event: any) => void, options: any) => {
             if (type === 'message') {
                 messageListeners.push(listener);
             } else {
@@ -286,7 +287,7 @@ describe('Webview Messenger', () => {
         let handled = false;
         new Messenger(vsCodeApi).onRequest(stringRequest, async (param: string, sender, cancelation) => {
             let timeOut: any;
-            cancelation.addCancelListener(() => {
+            cancelation.onCancellationRequested(() => {
                 clearTimeout(timeOut);
                 canceled = true;
             });
@@ -308,7 +309,7 @@ describe('Webview Messenger', () => {
             params: 'ping'
         });
         // send cancel request
-        postWindowMsg(createCancelRequestMessage({ type: 'webview', webviewId: 'test-view' }, 'request_id'));
+        postWindowMsg(createCancelRequestMessage({ type: 'webview', webviewId: 'test-view' }, { msgId: 'request_id' }));
 
         expect(started).toBe(true);
         expect(canceled).toBe(true);

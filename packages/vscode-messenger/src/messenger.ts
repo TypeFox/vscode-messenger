@@ -10,7 +10,7 @@ import {
     createCancelRequestMessage,
     equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
     isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
-    NotificationMessage, NotificationType, DeferredRequest, RequestHandler, RequestMessage, RequestType, ResponseError,
+    NotificationMessage, NotificationType, Deferred, RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
@@ -26,7 +26,7 @@ export class Messenger implements MessengerAPI {
     protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    protected readonly requests: Map<string, DeferredRequest<any>> = new Map();
+    protected readonly requests: Map<string, Deferred<any>> = new Map();
     protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly eventListeners: Map<(event: MessengerEvent) => void, DiagnosticOptions | undefined> = new Map();
@@ -195,7 +195,7 @@ export class Messenger implements MessengerAPI {
                 this.log(`Failed to send result message: ${participantToString(response.receiver)}`, 'error');
             }
         } catch (error) {
-            if (cancelable?.isCanceled) {
+            if (cancelable?.isCancellationRequested) {
                 // Don't report the error if request was canceled.
                 return;
             }
@@ -234,7 +234,7 @@ export class Messenger implements MessengerAPI {
     protected async processNotificationMessage(msg: NotificationMessage): Promise<void> {
         this.log(`Host received Notification message: ${msg.method}`);
         if (isCancelRequestNotification(msg)) {
-            const cancelable = this.pendingHandlers.get(msg.params);
+            const cancelable = this.pendingHandlers.get(msg.params.msgId);
             if (cancelable) {
                 cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
             } else {
@@ -352,12 +352,12 @@ export class Messenger implements MessengerAPI {
         }
 
         const msgId = this.createMsgId();
-        const pendingRequest = new DeferredRequest<R>();
+        const pendingRequest = new Deferred<R>();
         this.requests.set(msgId, pendingRequest);
         if (cancelable) {
-            cancelable.addCancelListener((reason) => {
+            cancelable.onCancellationRequested((reason) => {
                 // Send cancel message for pending request
-                view.webview.postMessage(createCancelRequestMessage(receiver, msgId));
+                view.webview.postMessage(createCancelRequestMessage(receiver, { msgId }));
                 pendingRequest.reject(new Error(reason));
                 this.requests.delete(msgId);
             });

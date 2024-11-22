@@ -6,7 +6,7 @@
 
 import {
     CancellationTokenImpl,
-    DeferredRequest,
+    Deferred,
     JsonAny, Message, MessageParticipant, MessengerAPI,
     NotificationHandler, NotificationMessage, NotificationType,
     RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage,
@@ -21,7 +21,7 @@ export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    protected readonly requests: Map<string, DeferredRequest<any>> = new Map();
+    protected readonly requests: Map<string, Deferred<any>> = new Map();
     protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly vscode: VsCodeApi;
@@ -95,7 +95,7 @@ export class Messenger implements MessengerAPI {
     protected async processNotificationMessage(msg: NotificationMessage) {
         this.log(`View received Notification message: ${msg.method}`);
         if (isCancelRequestNotification(msg)) {
-            const cancelable = this.pendingHandlers.get(msg.params);
+            const cancelable = this.pendingHandlers.get(msg.params.msgId);
             if (cancelable) {
                 cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
             } else {
@@ -126,7 +126,7 @@ export class Messenger implements MessengerAPI {
                 };
                 this.vscode.postMessage(response);
             } catch (error) {
-                if (cancelable.isCanceled) {
+                if (cancelable.isCancellationRequested) {
                     // Don't report the error if request was canceled.
                     return;
                 }
@@ -168,19 +168,19 @@ export class Messenger implements MessengerAPI {
         }
 
         const msgId = this.createMsgId();
-        const pending = new DeferredRequest<R>();
+        const pending = new Deferred<R>();
         this.requests.set(msgId, pending);
         if (cancelable) {
-            cancelable.addCancelListener((reason) => {
+            cancelable.onCancellationRequested((reason) => {
                 // Send cancel message for pending request
-                this.vscode.postMessage(createCancelRequestMessage(receiver, msgId));
+                this.vscode.postMessage(createCancelRequestMessage(receiver, {  msgId }));
                 pending.reject(new Error(reason));
                 this.requests.delete(msgId);
             });
             pending.result.finally(() => {
                 // Request finished, nothing to do on cancel.
                 cancelable.clearCancelListeners();
-            }).catch((err) =>
+            }).catch((err: unknown) =>
                 this.log(`Pending request rejected: ${String(err)}`)
             );
         }
