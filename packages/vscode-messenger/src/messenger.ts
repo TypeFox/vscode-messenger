@@ -4,16 +4,18 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import * as vscode from 'vscode';
-import {
-    CancellationToken, CancellationTokenImpl, createCancelRequestMessage, Deferred,
-    equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
-    isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
+import type * as vscode from 'vscode';
+import type {
+    CancellationToken, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
     NotificationMessage, NotificationType,
     RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
-import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
+import { CancellationTokenImpl, createCancelRequestMessage, Deferred,
+    equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
+    isWebviewIdMessageParticipant
+} from 'vscode-messenger-common';
+import type { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
 
 export class Messenger implements MessengerAPI {
 

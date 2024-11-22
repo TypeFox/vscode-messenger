@@ -4,7 +4,8 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { CancellationToken, Disposable, isNotificationMessage, Message, MessageParticipant, NotificationMessage } from './messages';
+import type { CancellationToken, Disposable, Message, MessageParticipant, NotificationMessage } from './messages';
+import { isNotificationMessage } from './messages';
 
 /**
  *  Deferred promise that can be resolved or rejected later.

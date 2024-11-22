@@ -1,21 +1,23 @@
 {
   "name": "devtools-ui",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "start": "vite",
+    "clean": "rimraf build",
     "build": "tsc && vite build",
     "watch": "tsc -w & vite build --watch",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
     "@vscode/webview-ui-toolkit": "^1.0.0",
-    "ag-grid-community": "28.1.1",
-    "ag-grid-react": "28.1.1",
+    "vscode-messenger-webview": "~0.5.0",
+    "ag-grid-community": "~31.3.4",
+    "ag-grid-react": "~31.3.4",
     "echarts": "^5.3.3",
     "react": "^17.0.0",
     "react-dom": "^17.0.0",
-    "vscode-messenger-webview": "~0.4.5",
     "react-force-graph-2d": "~1.24.0"
   },
   "devDependencies": {
@@ -24,7 +26,6 @@
     "@types/vscode-webview": "^1.57.0",
     "@vitejs/plugin-react": "~2.1.0",
     "@vscode/codicons": "0.0.20",
-    "typescript": "^4.6.2",
     "vite": "^3.0.0"
   }
 }

@@ -1,4 +1,4 @@
-import { ExtensionData } from '../devtools-view';
+import type { ExtensionData } from '../devtools-view';
 
 export const vsCodeApi = acquireVsCodeApi();
 

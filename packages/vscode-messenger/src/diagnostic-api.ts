@@ -4,8 +4,8 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import * as vscode from 'vscode';
-import { JsonAny } from 'vscode-messenger-common';
+import type * as vscode from 'vscode';
+import type { JsonAny } from 'vscode-messenger-common';
 
 /**
  * Messenger Diagnostic API
