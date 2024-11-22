@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import crypto from 'crypto';
-import { CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+import { CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
 import { Messenger, VsCodeApi } from '../src';
 
 Object.defineProperty(globalThis, 'crypto', {
@@ -279,18 +279,21 @@ describe('Webview Messenger', () => {
             }).catch((error) => {
                 expect(error.message).toBe('Test cancel');
             });
+        // check the internal cancelation listener attached in `sendRequest` was removed
+        expect((cancel as any).listeners.length).toBe(0);
     });
 
     test('Handle cancel request event', async () => {
         let started = false;
         let canceled = false;
         let handled = false;
+        const toDispose: Disposable[] = [];
         new Messenger(vsCodeApi).onRequest(stringRequest, async (param: string, sender, cancelation) => {
             let timeOut: any;
-            cancelation.onCancellationRequested(() => {
+            toDispose.push(cancelation.onCancellationRequested(() => {
                 clearTimeout(timeOut);
                 canceled = true;
-            });
+            }));
             started = true;
             // simulate work in progress
             await new Promise<void>(resolve => {
@@ -311,6 +314,7 @@ describe('Webview Messenger', () => {
         // send cancel request
         postWindowMsg(createCancelRequestMessage({ type: 'webview', webviewId: 'test-view' }, { msgId: 'request_id' }));
 
+        toDispose.forEach(d => d.dispose());
         expect(started).toBe(true);
         expect(canceled).toBe(true);
         expect(handled).toBe(false);

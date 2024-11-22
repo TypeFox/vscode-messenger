@@ -202,9 +202,18 @@ export class Deferred<R = any> {
  */
 export interface CancellationToken {
     readonly isCancellationRequested: boolean;
-    onCancellationRequested(callBack: (reason: string) => void): void;
+    onCancellationRequested(callBack: (reason: string) => void): Disposable;
 }
 
+/**
+ * Interface for objects that can be disposed.
+ */
+export interface Disposable {
+    /**
+     * Dispose this object.
+     */
+    dispose(): void;
+}
 /**
 * Implementation of the CancellationToken interface.
 * Allows to trigger cancelation.
@@ -219,19 +228,21 @@ export class CancellationTokenImpl implements CancellationToken {
         }
         this.canceled = true;
         this.listeners.forEach(callBack => callBack(reason));
-        this.clearCancelListeners();
+        this.listeners = [];
     }
 
     get isCancellationRequested(): boolean {
         return this.canceled;
     }
 
-    public onCancellationRequested(callBack: (reason: string) => void): void {
+    public onCancellationRequested(callBack: (reason: string) => void): Disposable {
         this.listeners.push(callBack);
-    }
-
-    public clearCancelListeners(): void {
-        this.listeners = [];
+        const listeners = this.listeners;
+        return {
+            dispose() {
+                listeners.splice(listeners.indexOf(callBack), 1);
+            }
+        };
     }
 }
 

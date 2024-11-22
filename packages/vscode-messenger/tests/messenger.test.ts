@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 import { MessengerEvent } from '../src/diagnostic-api';
 import { Messenger } from '../src/messenger';
 
@@ -521,6 +521,8 @@ describe('Extension Messenger', () => {
             }).catch((error) => {
                 expect(error.message).toBe('Test cancel');
             });
+        // check the internal cancelation listener attached in `sendRequestToWebview` was removed
+        expect((cancel as any).listeners.length).toBe(0);
     });
 
     test('Handle cancel request', async () => {
@@ -528,11 +530,12 @@ describe('Extension Messenger', () => {
         messenger.registerWebviewView(view1);
         let started = false;
         let handled = false;
+        const toDispose: Disposable[] = [];
         messenger.onRequest(simpleRequest, async (params: string, sender, cancelation) => {
             let timeOut: any;
-            cancelation.onCancellationRequested(() => {
+            toDispose.push(cancelation.onCancellationRequested(() => {
                 clearTimeout(timeOut);
-            });
+            }));
             started = true;
             // simulate work in progress
             await new Promise<void>(resolve => {
@@ -548,6 +551,7 @@ describe('Extension Messenger', () => {
         const cancelMsg = createCancelRequestMessage(HOST_EXTENSION, { msgId: 'fake_req_id' });
         await view1.messageCallback(cancelMsg);
 
+        toDispose.forEach(disposable => disposable.dispose());
         expect(started).toBe(true);
         expect(handled).toBe(false);
         expect(view1.messages[0]).toBeUndefined(); // don't expect cancelation succeed
