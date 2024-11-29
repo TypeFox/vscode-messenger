@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 import {
+    CancellationToken,
     CancellationTokenImpl,
     Deferred,
     JsonAny, Message, MessageParticipant, MessengerAPI,
@@ -162,7 +163,7 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R> {
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
         }
@@ -173,7 +174,7 @@ export class Messenger implements MessengerAPI {
         if (cancelable) {
             const listener = cancelable.onCancellationRequested((reason) => {
                 // Send cancel message for pending request
-                this.vscode.postMessage(createCancelRequestMessage(receiver, {  msgId }));
+                this.vscode.postMessage(createCancelRequestMessage(receiver, { msgId }));
                 pending.reject(new Error(reason));
                 this.requests.delete(msgId);
             });
@@ -242,6 +243,28 @@ export class Messenger implements MessengerAPI {
 export interface MessengerOptions {
     /** Whether to log any debug-level messages to the console. */
     debugLog?: boolean;
+}
+
+/**
+ * Create a CancellationToken that is linked to the given signal.
+ *
+ * @param signal An AbortSignal to create a CancellationToken for.
+ * @returns A CancellationToken that is linked to the given signal.
+ */
+export function createCancellationToken(signal: AbortSignal): CancellationToken {
+    return {
+        get isCancellationRequested(): boolean {
+            return signal.aborted;
+        },
+
+        onCancellationRequested: (callback: (reason: string) => void) => {
+            const listener = () => callback(String(signal.reason));
+            signal.addEventListener('abort', listener);
+            return {
+                dispose: () => signal.removeEventListener('abort', listener)
+            };
+        }
+    };
 }
 
 function participantToString(participant: MessageParticipant): string {

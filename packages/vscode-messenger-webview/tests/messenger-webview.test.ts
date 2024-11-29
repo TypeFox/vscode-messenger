@@ -9,7 +9,7 @@
 
 import crypto from 'crypto';
 import { CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
-import { Messenger, VsCodeApi } from '../src';
+import { createCancellationToken, Messenger, VsCodeApi } from '../src';
 
 Object.defineProperty(globalThis, 'crypto', {
     value: {
@@ -319,5 +319,21 @@ describe('Webview Messenger', () => {
         expect(canceled).toBe(true);
         expect(handled).toBe(false);
         expect(vsCodeApi.messages.length).toBe(0); // receiver should not receive any message
+    });
+
+    test('Test AbortSignal wrapper', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        const abortController = new AbortController();
+        setTimeout(() => abortController.abort(), 100);
+
+        const cancellable = createCancellationToken(abortController.signal);
+        await messenger.sendRequest(stringRequest, HOST_EXTENSION, FORCE_HANDLER_TO_WAIT_PARAM, cancellable)
+            .then(() => {
+                throw new Error('Expected to throw error');
+            }).catch((error) => {
+                expect(error.name).toBe('Error');
+            });
     });
 });
