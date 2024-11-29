@@ -6,11 +6,11 @@
 
 import * as vscode from 'vscode';
 import {
-    CancellationTokenImpl,
-    createCancelRequestMessage,
+    CancellationToken, CancellationTokenImpl, createCancelRequestMessage, Deferred,
     equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
     isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
-    NotificationMessage, NotificationType, Deferred, RequestHandler, RequestMessage, RequestType, ResponseError,
+    NotificationMessage, NotificationType,
+    RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
@@ -316,7 +316,7 @@ export class Messenger implements MessengerAPI {
         };
     }
 
-    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationTokenImpl): Promise<R> {
+    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R> {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
         } else if (receiver.type === 'broadcast') {
@@ -345,7 +345,7 @@ export class Messenger implements MessengerAPI {
         throw new Error(`Invalid receiver: ${JSON.stringify(receiver)}`);
     }
 
-    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer, cancelable?: CancellationTokenImpl): Promise<R> {
+    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer, cancelable?: CancellationToken): Promise<R> {
         // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
         if (!view.visible && this.options.ignoreHiddenViews) {
             return Promise.reject(new Error(`Skipped request for hidden view: ${participantToString(receiver)}`));
