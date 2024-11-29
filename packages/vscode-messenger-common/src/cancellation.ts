@@ -4,7 +4,7 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { isNotificationMessage, Message, MessageParticipant, NotificationMessage } from './messages';
+import { CancellationToken, Disposable, isNotificationMessage, Message, MessageParticipant, NotificationMessage } from './messages';
 
 /**
  *  Deferred promise that can be resolved or rejected later.
@@ -20,24 +20,6 @@ export class Deferred<R = any> {
     });
 }
 
-/**
- * Interface that allows to check for cancellation and
- * set a listener that is called when the request is canceled.
- */
-export interface CancellationToken {
-    readonly isCancellationRequested: boolean;
-    onCancellationRequested(callBack: (reason: string) => void): Disposable;
-}
-
-/**
- * Interface for objects that can be disposed.
- */
-export interface Disposable {
-    /**
-     * Dispose this object.
-     */
-    dispose(): void;
-}
 /**
 * Implementation of the CancellationToken interface.
 * Allows to trigger cancelation.

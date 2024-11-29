@@ -4,8 +4,6 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import { CancellationToken } from './cancellation';
-
 /**
  * Identifies an endpoint able to send and receive messages.
  */
@@ -182,4 +180,23 @@ export interface MessengerAPI {
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
+}
+
+/**
+ * Interface that allows to check for cancellation and
+ * set a listener that is called when the request is canceled.
+ */
+export interface CancellationToken {
+    readonly isCancellationRequested: boolean;
+    onCancellationRequested(callBack: (reason: string) => void): Disposable;
+}
+
+/**
+ * Interface for objects that can be disposed.
+ */
+export interface Disposable {
+    /**
+     * Dispose this object.
+     */
+    dispose(): void;
 }
