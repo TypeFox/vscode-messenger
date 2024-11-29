@@ -5,16 +5,25 @@
  ******************************************************************************/
 
 import {
+    CancellationToken,
+    CancellationTokenImpl,
+    Deferred,
+    JsonAny, Message, MessageParticipant, MessengerAPI,
+    NotificationHandler, NotificationMessage, NotificationType,
+    RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage,
+    createCancelRequestMessage,
+    isCancelRequestNotification,
     isMessage,
-    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI,
-    NotificationHandler, NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
+    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant
 } from 'vscode-messenger-common';
-import { acquireVsCodeApi, VsCodeApi } from './vscode-api';
+import { VsCodeApi, acquireVsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
-    protected readonly requests: Map<string, RequestData> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected readonly requests: Map<string, Deferred<any>> = new Map();
+    protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly vscode: VsCodeApi;
 
@@ -59,59 +68,88 @@ export class Messenger implements MessengerAPI {
             return;
         }
         if (isRequestMessage(msg)) {
-            this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
-            const handler = this.handlerRegistry.get(msg.method);
-            if (handler) {
-                try {
-                    const result = await handler(msg.params, msg.sender!);
-                    const response: ResponseMessage = {
-                        id: msg.id,
-                        receiver: msg.sender!,
-                        result: result as JsonAny
-                    };
-                    this.vscode.postMessage(response);
-                } catch (error) {
-                    const response: ResponseMessage = {
-                        id: msg.id,
-                        receiver: msg.sender!,
-                        error: this.createResponseError(error)
-                    };
-                    this.vscode.postMessage(response);
-                }
-            } else {
-                this.log(`Received request with unknown method: ${msg.method}`, 'warn');
-                const response: ResponseMessage = {
-                    id: msg.id,
-                    receiver: msg.sender!,
-                    error: {
-                        message: `Unknown method: ${msg.method}`
-                    }
-                };
-                this.vscode.postMessage(response);
-            }
+            await this.processRequestMessage(msg);
         } else if (isNotificationMessage(msg)) {
-            this.log(`View received Notification message: ${msg.method}`);
+            await this.processNotificationMessage(msg);
+        } else if (isResponseMessage(msg)) {
+            await this.processResponseMessage(msg);
+        } else {
+            this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
+        }
+    }
+
+    protected async processResponseMessage(msg: ResponseMessage) {
+        this.log(`View received Response message: ${msg.id}`);
+        const request = this.requests.get(msg.id);
+        if (request) {
+            if (msg.error) {
+                request.reject(msg.error);
+            } else {
+                request.resolve(msg.result);
+            }
+            this.requests.delete(msg.id);
+        } else {
+            this.log(`Received response for untracked message id: ${msg.id} (sender: ${participantToString(msg.sender!)})`, 'warn');
+        }
+    }
+
+    protected async processNotificationMessage(msg: NotificationMessage) {
+        this.log(`View received Notification message: ${msg.method}`);
+        if (isCancelRequestNotification(msg)) {
+            const cancelable = this.pendingHandlers.get(msg.params.msgId);
+            if (cancelable) {
+                cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
+            } else {
+                this.log(`Received cancel notification for missing cancelable. ${msg.params}`, 'warn');
+            }
+        } else {
             const handler = this.handlerRegistry.get(msg.method);
             if (handler) {
-                handler(msg.params, msg.sender!);
+                handler(msg.params, msg.sender!, new CancellationTokenImpl());
             } else if (msg.receiver.type !== 'broadcast') {
                 this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
             }
-        } else if (isResponseMessage(msg)) {
-            this.log(`View received Response message: ${msg.id}`);
-            const request = this.requests.get(msg.id);
-            if (request) {
-                if (msg.error) {
-                    request.reject(msg.error);
-                } else {
-                    request.resolve(msg.result);
+        }
+    }
+
+    protected async processRequestMessage(msg: RequestMessage) {
+        this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
+        const handler = this.handlerRegistry.get(msg.method);
+        if (handler) {
+            const cancelable = new CancellationTokenImpl();
+            try {
+                this.pendingHandlers.set(msg.id, cancelable);
+                const result = await handler(msg.params, msg.sender!, cancelable);
+                const response: ResponseMessage = {
+                    id: msg.id,
+                    receiver: msg.sender!,
+                    result: result as JsonAny
+                };
+                this.vscode.postMessage(response);
+            } catch (error) {
+                if (cancelable.isCancellationRequested) {
+                    // Don't report the error if request was canceled.
+                    return;
                 }
-                this.requests.delete(msg.id);
-            } else {
-                this.log(`Received response for untracked message id: ${msg.id} (sender: ${participantToString(msg.sender!)})`, 'warn');
+                const response: ResponseMessage = {
+                    id: msg.id,
+                    receiver: msg.sender!,
+                    error: this.createResponseError(error)
+                };
+                this.vscode.postMessage(response);
+            } finally {
+                this.pendingHandlers.delete(msg.id);
             }
         } else {
-            this.log(`Invalid message: ${JSON.stringify(msg)}`, 'error');
+            this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+            const response: ResponseMessage = {
+                id: msg.id,
+                receiver: msg.sender!,
+                error: {
+                    message: `Unknown method: ${msg.method}`
+                }
+            };
+            this.vscode.postMessage(response);
         }
     }
 
@@ -125,15 +163,28 @@ export class Messenger implements MessengerAPI {
         }
     }
 
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R> {
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
         }
 
         const msgId = this.createMsgId();
-        const result = new Promise<R>((resolve, reject) => {
-            this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
-        });
+        const pending = new Deferred<R>();
+        this.requests.set(msgId, pending);
+        if (cancelable) {
+            const listener = cancelable.onCancellationRequested((reason) => {
+                // Send cancel message for pending request
+                this.vscode.postMessage(createCancelRequestMessage(receiver, { msgId }));
+                pending.reject(new Error(reason));
+                this.requests.delete(msgId);
+            });
+            pending.result.finally(() => {
+                // Request finished, remove the listener
+                listener.dispose();
+            }).catch((err: unknown) =>
+                this.log(`Pending request rejected: ${String(err)}`)
+            );
+        }
         const message: RequestMessage = {
             id: msgId,
             method: type.method,
@@ -142,7 +193,7 @@ export class Messenger implements MessengerAPI {
             params: params as any
         };
         this.vscode.postMessage(message);
-        return result;
+        return pending.result;
     }
 
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
@@ -164,6 +215,11 @@ export class Messenger implements MessengerAPI {
         return 'req_' + this.nextMsgId++ + '_' + rand;
     }
 
+    /**
+     * Log a message to the console.
+     * @param text The message to log.
+     * @param level The log level. Defaults to 'debug'.
+     */
     protected log(text: string, level: 'debug' | 'warn' | 'error' = 'debug'): void {
         switch (level) {
             case 'debug': {
@@ -189,17 +245,33 @@ export interface MessengerOptions {
     debugLog?: boolean;
 }
 
-export interface RequestData {
-    resolve: (value: unknown) => void,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reject: (reason?: any) => void
+/**
+ * Create a CancellationToken that is linked to the given signal.
+ *
+ * @param signal An AbortSignal to create a CancellationToken for.
+ * @returns A CancellationToken that is linked to the given signal.
+ */
+export function createCancellationToken(signal: AbortSignal): CancellationToken {
+    return {
+        get isCancellationRequested(): boolean {
+            return signal.aborted;
+        },
+
+        onCancellationRequested: (callback: (reason: string) => void) => {
+            const listener = () => callback(String(signal.reason));
+            signal.addEventListener('abort', listener);
+            return {
+                dispose: () => signal.removeEventListener('abort', listener)
+            };
+        }
+    };
 }
 
 function participantToString(participant: MessageParticipant): string {
     switch (participant.type) {
         case 'extension':
             return 'host extension';
-        case 'webview':{
+        case 'webview': {
             if (isWebviewIdMessageParticipant(participant)) {
                 return participant.webviewId;
             } else if (participant.webviewType) {

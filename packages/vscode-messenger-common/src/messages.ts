@@ -147,13 +147,13 @@ export type RequestType<P, R> = {
     /**
      * Used to ensure correct typing. Clients must not use this property
      */
-    readonly _?: [P,R]
+    readonly _?: [P, R]
 };
 
 /**
  * Function for handling incoming requests.
  */
-export type RequestHandler<P, R> = (params: P, sender: MessageParticipant) => HandlerResult<R>;
+export type RequestHandler<P, R> = (params: P, sender: MessageParticipant, cancelable: CancellationToken) => HandlerResult<R>;
 export type HandlerResult<R> = R | Promise<R>;
 
 /**
@@ -176,8 +176,27 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
  * Base API for Messenger implementations.
  */
 export interface MessengerAPI {
-    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R>
+    sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R>
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
+}
+
+/**
+ * Interface that allows to check for cancellation and
+ * set a listener that is called when the request is canceled.
+ */
+export interface CancellationToken {
+    readonly isCancellationRequested: boolean;
+    onCancellationRequested(callBack: (reason: string) => void): Disposable;
+}
+
+/**
+ * Interface for objects that can be disposed.
+ */
+export interface Disposable {
+    /**
+     * Dispose this object.
+     */
+    dispose(): void;
 }

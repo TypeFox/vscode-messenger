@@ -19,11 +19,11 @@ type DataEvent = {
     event: MessengerEvent;
 };
 
-const PushDataNotification: NotificationType<DataEvent>= {
+const PushDataNotification: NotificationType<DataEvent> = {
     method: 'pushData'
 };
 
-const ExtensionListRequest: RequestType<boolean, ExtensionData[]>= {
+const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
     method: 'extensionList'
 };
 
@@ -43,7 +43,7 @@ export interface ExtendedMessengerEvent extends MessengerEvent {
 const MESSENGER_EXTENSION_ID = 'TypeFox.vscode-messenger-devtools';
 export const HOST_EXTENSION_NAME = 'host extension';
 
-class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState>{
+class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState> {
 
     messenger: Messenger;
     eventTable: EventTable;
@@ -68,11 +68,14 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 if (this.state.datasetSrc.size > 1) {
                     extensionToPreset = Array.from(this.state.datasetSrc.keys()).filter(key => key !== MESSENGER_EXTENSION_ID)[0] ?? extensionToPreset;
                 }
-                this.updateState({ ...this.state, selectedExtension: extensionToPreset }, true);
+                if (extensionToPreset) {
+                    this.updateState({ ...this.state, selectedExtension: extensionToPreset }, true);
+                }
             } else {
                 this.updateState(this.state, true);
             }
-        });
+            return;
+        }).catch(err => console.error(err));
 
     }
 
@@ -176,6 +179,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                         title={
                             'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
                         }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
+                    <span className='info-param-name'>Pending Req.:</span>
+                    <VSCodeBadge className='ext-info-badge'
+                        title='Number of pending (incoming + outgoing) requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
 
                     <span className='info-param-name'>Events:</span>
                     <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
@@ -221,7 +227,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         }
 
         if (dataEvent.event.parameter) {
-            dataEvent.event.payloadInfo = `${isResponse?'Response':'Parameter'} (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
+            dataEvent.event.payloadInfo = `${isResponse ? 'Response' : 'Parameter'} (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
         } else {
             dataEvent.event.payloadInfo = 'Payload information is empty or suppressed using diagnostic API options.';
         }

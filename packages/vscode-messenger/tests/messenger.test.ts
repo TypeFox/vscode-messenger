@@ -7,29 +7,47 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { BROADCAST, HOST_EXTENSION, isRequestMessage, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 import { MessengerEvent } from '../src/diagnostic-api';
 import { Messenger } from '../src/messenger';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
 const VIEW_TYPE_2 = 'test.view.type.2';
+const FORCE_HANDLER_TO_WAIT_PARAM = 'wait';
 
 const simpleNotification: NotificationType<string> = { method: 'notification' };
 const simpleRequest: RequestType<string, string> = { method: 'request' };
 
 function createWebview(viewType: string) {
     const view: any = {
+        handlerTimeout: undefined,
         viewType,
         webview: {
             onDidReceiveMessage: (callback: (msg: unknown) => void) => {
                 view.messageCallback = callback;
             },
-            postMessage: (message: any) => {
+            postMessage: async (message: any): Promise<boolean> => {
                 view.messages.push(message);
                 if (isRequestMessage(message)) {
-                    view.messageCallback({ receiver: view.responseReceiver, id: message.id, result: 'result:' + message.params });
+                    const callback = () => view.messageCallback({ receiver: view.responseReceiver, id: message.id, result: 'result:' + message.params });
+                    if (message.params === FORCE_HANDLER_TO_WAIT_PARAM) {
+                        let timeOut: NodeJS.Timeout;
+                        await new Promise((resolve, reject) => {
+                            view.handlerReject = reject;
+                            timeOut = setTimeout(() => {
+                                if (view.messageCallback) {
+                                    callback();
+                                }
+                                resolve('resolved');
+                            }, 500);
+                        }).catch((error) => clearTimeout(timeOut));
+                    } else {
+                        callback();
+                    }
+                } else if (isCancelRequestNotification(message)) {
+                    view.handlerReject('Canceled by CancelRequestNotification');
                 }
-                return true;
+                return Promise.resolve(true);
             }
         },
         onDidDispose: () => {
@@ -214,14 +232,21 @@ describe('Extension Messenger', () => {
     });
 
     test('Handle request with no handler', async () => {
+        // suppress warn logging: "Received request with unknown method: request"
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
+
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Unknown method: request' } });
+        warn.mockRestore();
     });
 
     test('Handle request with multiple handlers', async () => {
+        // suppress "Multiple request handlers" warn logging
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
+
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         messenger.onRequest(simpleRequest, (params: string) => {
@@ -233,9 +258,13 @@ describe('Extension Messenger', () => {
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Multiple matching request handlers' } });
+        warn.mockRestore();
     });
 
     test('Handle request with multiple handlers, but none matching', async () => {
+        // suppress "No request handler for request matching sender" warn logging
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
+
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         messenger.onRequest(simpleRequest, (params: string) => {
@@ -247,6 +276,8 @@ describe('Extension Messenger', () => {
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'No matching request handler' } });
+
+        warn.mockRestore();
     });
 
     test('Handle request with multiple handlers, only one matching', async () => {
@@ -478,6 +509,53 @@ describe('Extension Messenger', () => {
         );
     });
 
+    test('Cancel request-handler', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        const cancel: CancellationTokenImpl = new CancellationTokenImpl();
+        setTimeout(() =>
+            cancel.cancel('Test cancel'), 300);
+        await messenger.sendRequest(simpleRequest, ViewParticipant(VIEW_TYPE_1), FORCE_HANDLER_TO_WAIT_PARAM, cancel)
+            .then(() => {
+                throw new Error('Expected to throw error');
+            }).catch((error) => {
+                expect(error.message).toBe('Test cancel');
+            });
+        // check the internal cancelation listener attached in `sendRequestToWebview` was removed
+        expect((cancel as any).listeners.length).toBe(0);
+    });
+
+    test('Handle cancel request', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        let started = false;
+        let handled = false;
+        const toDispose: Disposable[] = [];
+        messenger.onRequest(simpleRequest, async (params: string, sender, cancelation) => {
+            let timeOut: any;
+            toDispose.push(cancelation.onCancellationRequested(() => {
+                clearTimeout(timeOut);
+            }));
+            started = true;
+            // simulate work in progress
+            await new Promise<void>(resolve => {
+                timeOut = setTimeout(resolve, 1000);
+            });
+            handled = true;
+            return 'handled:' + params;
+        });
+        // Simulate webview request
+        view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
+
+        // Send cancel notification
+        const cancelMsg = createCancelRequestMessage(HOST_EXTENSION, { msgId: 'fake_req_id' });
+        await view1.messageCallback(cancelMsg);
+
+        toDispose.forEach(disposable => disposable.dispose());
+        expect(started).toBe(true);
+        expect(handled).toBe(false);
+        expect(view1.messages[0]).toBeUndefined(); // don't expect cancelation succeed
+    });
 });
 
 function delay(delay: number): Promise<void> {
@@ -489,4 +567,8 @@ async function waitAsync(n = 1): Promise<void> {
         await waitAsync(n - 1);
         return new Promise<void>(resolve => setImmediate(resolve));
     }
+}
+
+function ViewParticipant(type: string): WebviewTypeMessageParticipant {
+    return { type: 'webview', webviewType: type };
 }

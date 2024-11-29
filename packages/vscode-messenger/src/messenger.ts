@@ -6,9 +6,11 @@
 
 import * as vscode from 'vscode';
 import {
-    equalParticipants, HOST_EXTENSION, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
+    CancellationToken, CancellationTokenImpl, createCancelRequestMessage, Deferred,
+    equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
     isWebviewIdMessageParticipant, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
-    NotificationMessage, NotificationType, RequestHandler, RequestMessage, RequestType, ResponseError,
+    NotificationMessage, NotificationType,
+    RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
@@ -23,7 +25,9 @@ export class Messenger implements MessengerAPI {
 
     protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
 
-    protected readonly requests: Map<string, RequestData> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected readonly requests: Map<string, Deferred<any>> = new Map();
+    protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
 
     protected readonly eventListeners: Map<(event: MessengerEvent) => void, DiagnosticOptions | undefined> = new Map();
 
@@ -84,8 +88,7 @@ export class Messenger implements MessengerAPI {
                 return this.processMessage(msg, res => {
                     this.notifyEventListeners(res);
                     return view.webview.postMessage(res);
-                })
-                    .catch(err => this.log(String(err), 'error'));
+                }).catch(err => this.log(String(err), 'error'));
             }
         });
 
@@ -177,8 +180,10 @@ export class Messenger implements MessengerAPI {
             return this.sendErrorResponse('Multiple matching request handlers', msg, responseCallback);
         }
 
+        const cancelable = new CancellationTokenImpl();
         try {
-            const result = await filtered[0].handler(msg.params, msg.sender!);
+            this.pendingHandlers.set(msg.id, cancelable);
+            const result = await filtered[0].handler(msg.params, msg.sender!, cancelable);
             const response: ResponseMessage = {
                 id: msg.id,
                 sender: HOST_EXTENSION,
@@ -190,7 +195,13 @@ export class Messenger implements MessengerAPI {
                 this.log(`Failed to send result message: ${participantToString(response.receiver)}`, 'error');
             }
         } catch (error) {
+            if (cancelable?.isCancellationRequested) {
+                // Don't report the error if request was canceled.
+                return;
+            }
             this.sendErrorResponse(this.createResponseError(error), msg, responseCallback);
+        } finally {
+            this.pendingHandlers.delete(msg.id);
         }
     }
 
@@ -222,15 +233,26 @@ export class Messenger implements MessengerAPI {
      */
     protected async processNotificationMessage(msg: NotificationMessage): Promise<void> {
         this.log(`Host received Notification message: ${msg.method}`);
-        const regs = this.handlerRegistry.get(msg.method);
-        if (regs) {
-            const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
-            if (filtered.length > 0) {
-                await Promise.all(filtered.map(reg => reg.handler(msg.params, msg.sender!)));
+        if (isCancelRequestNotification(msg)) {
+            const cancelable = this.pendingHandlers.get(msg.params.msgId);
+            if (cancelable) {
+                cancelable.cancel(`Request ${msg.params} was canceled by the sender.`);
+            } else {
+                this.log(`Received cancel notification for missing cancelable. ${msg.params}`);
             }
-        } else if (msg.receiver.type !== 'broadcast') {
-            this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
+        } else {
+            const regs = this.handlerRegistry.get(msg.method);
+            if (regs) {
+                const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
+                if (filtered.length > 0) {
+                    // TODO No need to cancel a notification
+                    await Promise.all(filtered.map(reg => reg.handler(msg.params, msg.sender!, new CancellationTokenImpl())));
+                }
+            } else if (msg.receiver.type !== 'broadcast') {
+                this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
+            }
         }
+
     }
 
     /**
@@ -294,14 +316,16 @@ export class Messenger implements MessengerAPI {
         };
     }
 
-    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P): Promise<R> {
+    async sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R> {
         if (receiver.type === 'extension') {
             throw new Error('Requests to other extensions are not supported yet.');
+        } else if (receiver.type === 'broadcast') {
+            throw new Error('Only notification messages are allowed for broadcast.');
         } else if (receiver.type === 'webview') {
             if (isWebviewIdMessageParticipant(receiver)) {
                 const receiverView = this.viewRegistry.get(receiver.webviewId);
                 if (receiverView) {
-                    return this.sendRequestToWebview(type, receiver, params, receiverView.container);
+                    return this.sendRequestToWebview(type, receiver, params, receiverView.container, cancelable);
                 } else {
                     return Promise.reject(new Error(`No webview with id ${receiver.webviewId} is registered.`));
                 }
@@ -309,7 +333,7 @@ export class Messenger implements MessengerAPI {
                 const receiverViews = this.viewTypeRegistry.get(receiver.webviewType);
                 if (receiverViews) {
                     // If there are multiple views, we make a race: the first view to return a result wins
-                    const results = Array.from(receiverViews).map(view => this.sendRequestToWebview(type, receiver, params, view));
+                    const results = Array.from(receiverViews).map(view => this.sendRequestToWebview(type, receiver, params, view, cancelable));
                     return Promise.race(results);
                 } else {
                     return Promise.reject(new Error(`No webview with type ${receiver.webviewType} is registered.`));
@@ -317,22 +341,33 @@ export class Messenger implements MessengerAPI {
             } else {
                 throw new Error('Unspecified webview receiver: neither webviewId nor webviewType was set.');
             }
-        } else if (receiver.type === 'broadcast') {
-            throw new Error('Only notification messages are allowed for broadcast.');
         }
         throw new Error(`Invalid receiver: ${JSON.stringify(receiver)}`);
     }
 
-    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer): Promise<R> {
+    protected async sendRequestToWebview<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params: P, view: ViewContainer, cancelable?: CancellationToken): Promise<R> {
         // Messages are only delivered if the webview is live (either visible or in the background with `retainContextWhenHidden`).
         if (!view.visible && this.options.ignoreHiddenViews) {
             return Promise.reject(new Error(`Skipped request for hidden view: ${participantToString(receiver)}`));
         }
 
         const msgId = this.createMsgId();
-        const result = new Promise<R>((resolve, reject) => {
-            this.requests.set(msgId, { resolve: resolve as (value: unknown) => void, reject });
-        });
+        const pendingRequest = new Deferred<R>();
+        this.requests.set(msgId, pendingRequest);
+        if (cancelable) {
+            const listener = cancelable.onCancellationRequested((reason) => {
+                // Send cancel message for pending request
+                view.webview.postMessage(createCancelRequestMessage(receiver, { msgId }));
+                pendingRequest.reject(new Error(reason));
+                this.requests.delete(msgId);
+            });
+            pendingRequest.result.finally(() => {
+                // Request finished, remove listener
+                listener.dispose();
+            }).catch((err) =>
+                this.log(`Pending request rejected: ${String(err)}`)
+            );
+        }
         const message: RequestMessage = {
             id: msgId,
             method: type.method,
@@ -348,7 +383,7 @@ export class Messenger implements MessengerAPI {
             this.requests.get(msgId)?.reject(new Error(`Failed to send message to view: ${participantToString(receiver)}`));
             this.requests.delete(msgId);
         }
-        return result;
+        return pendingRequest.result;
     }
 
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
@@ -441,8 +476,8 @@ export class Messenger implements MessengerAPI {
                 event.error = `Unknown message to ${msg.receiver}`;
             }
             this.eventListeners.forEach((options, listener) => {
-                if(isResponseMessage(msg)) {
-                    if(!options?.withResponseData) {
+                if (isResponseMessage(msg)) {
+                    if (!options?.withResponseData) {
                         // Clear response value if user don't want to expose it
                         event.parameter = undefined;
                     }
@@ -466,7 +501,7 @@ export class Messenger implements MessengerAPI {
             extensionInfo: () => {
                 return {
                     diagnosticListeners: this.eventListeners.size,
-                    pendingRequest: this.requests.size,
+                    pendingRequest: this.requests.size + this.pendingHandlers.size,
                     handlers:
                         Array.from(this.handlerRegistry.entries()).map(
                             entry => { return { method: entry[0], count: entry[1].length }; }),
@@ -522,12 +557,6 @@ export interface MessengerOptions {
     debugLog?: boolean;
 }
 
-export interface RequestData {
-    resolve: (value: unknown) => void,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reject: (reason?: any) => void
-}
-
 export interface ViewData {
     id: string
     container: ViewContainer
@@ -536,8 +565,10 @@ export interface ViewData {
 
 export interface ViewOptions {
     /**
-     * Methods to be received by the webview when corresponding notifications are sent with
-     * a `broadcast` type. If omitted, no broadcast notifications will be received.
+     * Specifies a list of methods that the webview should receive when corresponding notifications are sent with a `broadcast` type.
+     * When a notification corresponding to any of the listed methods is broadcasted, the webview will be notified.
+     * If this option is omitted or set to `undefined`, the webview will not receive any broadcast notifications.
+     * The default is `undefined`.
      */
     broadcastMethods?: string[]
 }
