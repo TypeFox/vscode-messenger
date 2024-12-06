@@ -75,8 +75,8 @@
 		"watch": "tsc -w -p ./"
 	},
 	"dependencies": {
-		"vscode-messenger": "^0.4.5",
-		"vscode-messenger-webview": "^0.4.5"
+		"vscode-messenger": "^0.5.0",
+		"vscode-messenger-webview": "^0.5.0"
 	},
 	"devDependencies": {
 		"browserify": "^17.0.0",
