@@ -1,14 +1,12 @@
 import * as vscode from 'vscode';
-import { Messenger } from 'vscode-messenger';
+import type { Messenger } from 'vscode-messenger';
 import { BugIntroduced, Refactor } from './message-types';
-
 
 const cats = {
     'Coding Cat': 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
     'Compiling Cat': 'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',
     'Testing Cat': 'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif'
 };
-
 
 /**
  * Manages cat coding webview panels
@@ -57,7 +55,7 @@ export class CatCodingPanel {
     private static doRegisterWebViewPanel(panel: vscode.WebviewPanel, messenger: Messenger): void {
         messenger.registerWebviewPanel(panel, { broadcastMethods: [BugIntroduced.method] });
     }
-    
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, messenger: Messenger) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -72,7 +70,7 @@ export class CatCodingPanel {
 
         // Update the content based on view changes
         this._panel.onDidChangeViewState(
-            e => {
+            _e => {
                 if (this._panel.visible) {
                     this._update();
                 }
@@ -193,7 +191,6 @@ export function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptio
         localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
     };
 }
-
 
 function getNonce() {
     let text = '';

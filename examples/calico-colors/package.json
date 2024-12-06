@@ -1,89 +1,85 @@
 {
-	"name": "calico-colors",
-	"description": "Calico Colors - A Webview View API Sample",
-	"version": "0.0.1",
-	"publisher": "vscode-messenger-examples",
-	"private": true,
-	"license": "MIT",
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"extensionKind": [
-		"ui",
-		"workspace"
-	],
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onView:calicoColors.colorsView",
-		"onCommand:calicoColors.addColor",
-		"onCommand:calicoColors.clearColors",
-		"onWebviewPanel:catCoding"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"views": {
-			"explorer": [
-				{
-					"type": "webview",
-					"id": "calicoColors.colorsView",
-					"name": "Calico Colors"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "calicoColors.addColor",
-				"category": "Calico Colors",
-				"title": "Add Color"
-			},
-			{
-				"command": "calicoColors.clearColors",
-				"category": "Calico Colors",
-				"title": "Clear Colors",
-				"icon": "$(clear-all)"
-			},
-			{
-				"command": "catCoding.start",
-				"title": "Start cat coding session",
-				"category": "Cat Coding"
-			},
-			{
-				"command": "catCoding.doRefactor",
-				"title": "Do some refactoring",
-				"category": "Cat Coding"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "calicoColors.clearColors",
-					"group": "navigation",
-					"when": "view == calicoColors.colorsView"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"clean": "rimraf out",
-		"build": "npm run compile",
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./ && npm run browserify",
-		"lint": "eslint . --ext .ts,.tsx",
-		"browserify": "browserify ./media/calico-colors/main.js > ./media/web-view-bundle-calico-colors.js && browserify ./media/coding-cat/main.js > ./media/web-view-bundle-coding-cat.js",
-		"watch": "tsc -w -p ./"
-	},
-	"dependencies": {
-		"vscode-messenger": "^0.5.0",
-		"vscode-messenger-webview": "^0.5.0"
-	},
-	"devDependencies": {
-		"browserify": "^17.0.0",
-		"@types/vscode": "^1.53.0",
-		"@typescript-eslint/eslint-plugin": "^5.19.0",
-		"@typescript-eslint/parser": "^5.19.0",
-		"eslint": "^8.13.0",
-		"typescript": "^4.6.3"
-	}
+  "name": "calico-colors",
+  "description": "Calico Colors - A Webview View API Sample",
+  "version": "0.0.1",
+  "publisher": "vscode-messenger-examples",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:calicoColors.colorsView",
+    "onCommand:calicoColors.addColor",
+    "onCommand:calicoColors.clearColors",
+    "onWebviewPanel:catCoding"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "calicoColors.colorsView",
+          "name": "Calico Colors"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "calicoColors.addColor",
+        "category": "Calico Colors",
+        "title": "Add Color"
+      },
+      {
+        "command": "calicoColors.clearColors",
+        "category": "Calico Colors",
+        "title": "Clear Colors",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "catCoding.start",
+        "title": "Start cat coding session",
+        "category": "Cat Coding"
+      },
+      {
+        "command": "catCoding.doRefactor",
+        "title": "Do some refactoring",
+        "category": "Cat Coding"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "calicoColors.clearColors",
+          "group": "navigation",
+          "when": "view == calicoColors.colorsView"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "clean": "rimraf out",
+    "build": "npm run compile",
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && npm run browserify",
+    "lint": "eslint . --ext .ts,.tsx",
+    "browserify": "browserify ./media/calico-colors/main.js > ./media/web-view-bundle-calico-colors.js && browserify ./media/coding-cat/main.js > ./media/web-view-bundle-coding-cat.js",
+    "watch": "tsc -w -p ./"
+  },
+  "dependencies": {
+    "vscode-messenger": "^0.5.0",
+    "vscode-messenger-webview": "^0.5.0"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "@types/vscode": "^1.53.0"
+  }
 }

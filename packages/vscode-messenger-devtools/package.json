@@ -1,69 +1,67 @@
 {
-	"name": "vscode-messenger-devtools",
-	"version": "0.5.0",
-	"publisher": "TypeFox",
-	"displayName": "VS Code Messenger Devtools",
-	"description": "Message communication visualization for VS Code.",
-	"keywords": [
-		"vscode",
-		"webview",
-		"rpc",
-		"messaging"
-	],
-	"engines": {
-		"vscode": "^1.70.0"
-	},
-	"categories": [
-		"Visualization",
-		"Other"
-	],
-	"activationEvents": [
-		"onCommand:vscode-messenger-devtools.activate",
-		"onView:vscode-messenger-devtools.messengerView"
-	],
-	"main": "./lib/devtool-ext",
-	"types": "./lib/devtool-ext.d.ts",
-	"license": "MIT",
-	"icon": "logo-icon.png",
-	"contributes": {
-		"commands": [
-			{
-				"category": "Developer",
-				"command": "vscode-messenger-devtools.activate",
-				"title": "Open vscode-messenger devtools"
-			}
-		]
-	},
-	"scripts": {
-		"install:all": "npm install && npm --prefix ./webview-ui install ./webview-ui",
-		"start:webview": "npm --prefix ./webview-ui run start",
-		"build:webview": "npm --prefix ./webview-ui run build",
-		"vscode:prepublish": "npm run compile",
-		"build": "tsc -p ./",
-		"watch": "tsc -watch -p ./ & cd ./webview-ui && npm run watch",
-		"pretest": "npm run compile && npm run lint",
-		"lint": "eslint src --ext ts",
-		"test": "node ./lib/test/runTest.js"
-	},
-	"dependencies": {
-		"@vscode/webview-ui-toolkit": "~1.0.0",
-		"vscode-messenger": "^0.5.0"
-	},
-	"devDependencies": {
-		"@types/vscode": "^1.70.0",
-		"@types/vscode-webview": "^1.57.0",
-		"@typescript-eslint/eslint-plugin": "^5.15.0",
-		"@typescript-eslint/parser": "^5.15.0",
-		"eslint": "^8.11.0",
-		"typescript": "^4.6.2"
-	},
-	"bugs": "https://github.com/TypeFox/vscode-messenger/issues",
-	"author": {
-		"name": "Dennis Hübner"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/TypeFox/vscode-messenger",
-		"directory": "packages/vscode-messenger-devtool"
-	}
+  "name": "vscode-messenger-devtools",
+  "version": "0.5.0",
+  "publisher": "TypeFox",
+  "displayName": "VS Code Messenger Devtools",
+  "description": "Message communication visualization for VS Code.",
+  "private": true,
+  "keywords": [
+    "vscode",
+    "webview",
+    "rpc",
+    "messaging"
+  ],
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:vscode-messenger-devtools.activate",
+    "onView:vscode-messenger-devtools.messengerView"
+  ],
+  "main": "./lib/devtool-ext",
+  "types": "./lib/devtool-ext.d.ts",
+  "license": "MIT",
+  "icon": "logo-icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "category": "Developer",
+        "command": "vscode-messenger-devtools.activate",
+        "title": "Open vscode-messenger devtools"
+      }
+    ]
+  },
+  "scripts": {
+    "install:all": "npm install && npm --prefix ./webview-ui install ./webview-ui",
+    "start:webview": "npm --prefix ./webview-ui run start",
+    "build:webview": "npm --prefix ./webview-ui run build",
+    "vscode:prepublish": "npm run compile",
+    "build": "tsc -p ./",
+    "clean": "rimraf lib",
+    "watch": "tsc -watch -p ./ & cd ./webview-ui && npm run watch",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./lib/test/runTest.js"
+  },
+  "dependencies": {
+    "@vscode/webview-ui-toolkit": "~1.0.0",
+    "vscode-messenger": "~0.5.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.70.0",
+    "@types/vscode-webview": "^1.57.0"
+  },
+  "bugs": "https://github.com/TypeFox/vscode-messenger/issues",
+  "author": {
+    "name": "Dennis Hübner"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TypeFox/vscode-messenger",
+    "directory": "packages/vscode-messenger-devtool"
+  }
 }

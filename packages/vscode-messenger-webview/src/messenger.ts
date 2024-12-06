@@ -4,19 +4,22 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import {
+import type {
     CancellationToken,
-    CancellationTokenImpl,
-    Deferred,
     JsonAny, Message, MessageParticipant, MessengerAPI,
     NotificationHandler, NotificationMessage, NotificationType,
-    RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage,
+    RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
+} from 'vscode-messenger-common';
+import {
+    CancellationTokenImpl,
+    Deferred,
     createCancelRequestMessage,
     isCancelRequestNotification,
     isMessage,
     isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant
 } from 'vscode-messenger-common';
-import { VsCodeApi, acquireVsCodeApi } from './vscode-api';
+import type { VsCodeApi } from './vscode-api';
+import { acquireVsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 
