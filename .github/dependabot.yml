@@ -5,9 +5,17 @@ updates:
     directory: "/" # Location of package.json file
     schedule:
       interval: "weekly"
+    applies-to:
+      - security-updates
+    allow:
+      - dependency-type: "production"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/" # Location of GitHub Actions workflows
     schedule:
       interval: "weekly"
+    applies-to:
+      - security-updates
+    allow:
+      - dependency-type: "production"
