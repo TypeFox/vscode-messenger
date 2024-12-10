@@ -28,7 +28,7 @@ export class CancellationTokenImpl implements CancellationToken {
     private canceled = false;
     private listeners: Array<((reason: string) => void)> = [];
 
-    public cancel(reason: string = ''): void {
+    public cancel(reason = ''): void {
         if (this.canceled) {
             throw new Error('Request was already canceled.');
         }
