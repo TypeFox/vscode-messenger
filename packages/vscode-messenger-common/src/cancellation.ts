@@ -26,9 +26,9 @@ export class Deferred<R = any> {
 */
 export class CancellationTokenImpl implements CancellationToken {
     private canceled = false;
-    private listeners: Array<((reason: string) => void)> = [];
+    private listeners: Array<((reason?: string) => void)> = [];
 
-    public cancel(reason = ''): void {
+    public cancel(reason?: string): void {
         if (this.canceled) {
             throw new Error('Request was already canceled.');
         }
@@ -41,7 +41,7 @@ export class CancellationTokenImpl implements CancellationToken {
         return this.canceled;
     }
 
-    public onCancellationRequested(callback: (reason: string) => void): Disposable {
+    public onCancellationRequested(callback: (reason?: string) => void): Disposable {
         this.listeners.push(callback);
         const listeners = this.listeners;
         return {
