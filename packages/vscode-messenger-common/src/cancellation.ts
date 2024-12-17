@@ -22,18 +22,18 @@ export class Deferred<R = any> {
 
 /**
 * Implementation of the CancellationToken interface.
-* Allows to trigger cancelation.
+* Allows to trigger cancellation.
 */
 export class CancellationTokenImpl implements CancellationToken {
     private canceled = false;
-    private listeners: Array<((reason: string) => void)> = [];
+    private listeners: Array<((reason?: string) => void)> = [];
 
-    public cancel(reason: string): void {
+    public cancel(reason?: string): void {
         if (this.canceled) {
             throw new Error('Request was already canceled.');
         }
         this.canceled = true;
-        this.listeners.forEach(callBack => callBack(reason));
+        this.listeners.forEach(callback => callback(reason));
         this.listeners = [];
     }
 
@@ -41,12 +41,12 @@ export class CancellationTokenImpl implements CancellationToken {
         return this.canceled;
     }
 
-    public onCancellationRequested(callBack: (reason: string) => void): Disposable {
-        this.listeners.push(callBack);
+    public onCancellationRequested(callback: (reason?: string) => void): Disposable {
+        this.listeners.push(callback);
         const listeners = this.listeners;
         return {
             dispose() {
-                listeners.splice(listeners.indexOf(callBack), 1);
+                listeners.splice(listeners.indexOf(callback), 1);
             }
         };
     }

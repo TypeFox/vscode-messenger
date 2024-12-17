@@ -188,7 +188,7 @@ export interface MessengerAPI {
  */
 export interface CancellationToken {
     readonly isCancellationRequested: boolean;
-    onCancellationRequested(callBack: (reason: string) => void): Disposable;
+    onCancellationRequested(callBack: (reason?: string) => void): Disposable;
 }
 
 /**

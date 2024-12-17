@@ -525,6 +525,22 @@ describe('Extension Messenger', () => {
         expect((cancel as any).listeners.length).toBe(0);
     });
 
+    test('Cancel request - no reason', async () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        const cancel: CancellationTokenImpl = new CancellationTokenImpl();
+        setTimeout(() =>
+            cancel.cancel(), 300);
+        await messenger.sendRequest(simpleRequest, ViewParticipant(VIEW_TYPE_1), FORCE_HANDLER_TO_WAIT_PARAM, cancel)
+            .then(() => {
+                throw new Error('Expected to throw error');
+            }).catch((error) => {
+                expect(error.message).toBe('');
+            });
+        // check the internal cancelation listener attached in `sendRequestToWebview` was removed
+        expect((cancel as any).listeners.length).toBe(0);
+    });
+
     test('Handle cancel request', async () => {
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
