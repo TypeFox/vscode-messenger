@@ -24,11 +24,7 @@
     "publish:latest": "npm publish --tag latest"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.15.0",
-    "@typescript-eslint/parser": "^5.15.0",
-    "eslint": "^8.11.0",
-    "rimraf": "^3.0.2",
-    "typescript": "^4.6.2"
+    "rimraf": "^3.0.2"
   },
   "repository": {
     "type": "git",

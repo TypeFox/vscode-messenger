@@ -9,9 +9,12 @@ export default defineConfig({
         react(),
     ],
     assetsInclude: [
-        'node_modules/@vscode/codicons/dist/codicon.ttf',
-        'node_modules/@vscode/codicons/dist/codicon.css'
+        '**/codicon.css',
     ],
+    resolve: {
+        // otherwise rollup fails to resolve exported vscode-messenger-webview types
+        preserveSymlinks: true
+    },
     build: {
         outDir: 'build',
         sourcemap: true,

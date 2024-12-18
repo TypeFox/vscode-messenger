@@ -2,7 +2,7 @@ import type { ECharts, EChartsOption, SetOptionOpts } from 'echarts';
 import { getInstanceByDom, init } from 'echarts';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef } from 'react';
-import { MessengerEvent } from 'vscode-messenger';
+import type { MessengerEvent } from 'vscode-messenger';
 
 export interface ReactEChartsProps {
     option: EChartsOption;

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import * as vscode from 'vscode';
 import { Messenger } from 'vscode-messenger';
 import { NotificationType, RequestType } from "vscode-messenger-common";

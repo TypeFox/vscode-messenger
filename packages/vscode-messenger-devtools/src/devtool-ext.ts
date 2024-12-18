@@ -5,9 +5,10 @@
  */
 
 import * as vscode from 'vscode';
-import { ExtensionInfo, isMessengerDiagnostic, Messenger, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
+import type { ExtensionInfo, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
+import { isMessengerDiagnostic, Messenger } from 'vscode-messenger';
 import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
-import { NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import type { NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 
 const devtoolsView: WebviewTypeMessageParticipant = {
     type: 'webview',
