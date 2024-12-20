@@ -1,24 +1,24 @@
 # VS Code Messenger
+
 RPC messaging library for the VS Code extension platform. Makes the communication between your [VS Code extension](https://code.visualstudio.com/) and its [webviews](https://code.visualstudio.com/api/extension-guides/webview) much simpler.
 
 [![npm](https://img.shields.io/npm/v/vscode-messenger)](https://www.npmjs.com/package/vscode-messenger) [![CI](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml/badge.svg)](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml) [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/typefox/vscode-messenger)
 
-
-#### Diagnostics vs-code extension
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/typefox.vscode-messenger-devtools?label=VS-Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=typefox.vscode-messenger-devtools)
-
-
-[Devtool vscode extension](https://github.com/TypeFox/vscode-messenger/tree/main/packages/vscode-messenger-devtools) helps inspecting messages interaction between your extension components.
-
 #### Supported features
 
-- Sending notification or an async request from an extension to a view, a view group or broadcast to all registered views
-- Sending notification or an async request from a view to an other view, a view group or the host extension
-- Support for sync and async request/notification handlers
-- Typed API
+- Sending notification or a request from an __extension to a view__, a __view group__ or __broadcast__ to all registered views
+- Sending notification or a request from a __view to other view__, a view group or the host extension
+- Support for __sync and async__ request/notification handlers
+- Support for __request cancellation__
+- __Typed__ API
 - Automatically unregister views on view dispose
 - Configurable logging
 
+#### Diagnostics vs-code extension
+
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/typefox.vscode-messenger-devtools?label=VS-Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=typefox.vscode-messenger-devtools)
+
+[Devtool vscode extension](https://github.com/TypeFox/vscode-messenger/tree/main/packages/vscode-messenger-devtools) helps inspecting messages interaction between your extension components.
 
 #### Usage in an extension (TS example)
 
@@ -53,8 +53,9 @@ messenger.sendNotification(colorModifyType, {type: 'webview', webviewType: 'cali
 const selectedColor = await messenger.sendRequest({ method: 'getSelectedColor' }, {type: 'webview', webviewType: 'calicoColors.colorsView' }, '');
 ```
 
-
 #### Usage in a webview (JS Example)
+
+Using JS in this example for simplicity. You can use TypeScript as well.
 
 ```js
 const vscode = acquireVsCodeApi();
@@ -84,3 +85,7 @@ messenger.start(); // start listening for incoming events
  console.log(colors);
 
 ```
+
+#### More examples
+
+See tests for more examples.
