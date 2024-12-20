@@ -8,5 +8,5 @@ updates:
       - "/packages/vscode-messenger-devtools/webview-ui"
     schedule:
       interval: "weekly"
-    ignore:
-      - dependency-type: "development"
+    allow:
+      - dependency-type: "production"
