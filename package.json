@@ -3,7 +3,7 @@
   "private": true,
   "engineStrict": true,
   "engines": {
-    "npm": "^10.9.0"
+    "npm": "^10.8.0"
   },
   "scripts": {
     "prepare": "npm run clean && npm run build",
