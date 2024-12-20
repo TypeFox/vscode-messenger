@@ -7,12 +7,14 @@
   },
   "scripts": {
     "prepare": "npm run clean && npm run build",
-    "clean": "rimraf \"packages/**/lib\" \"packages/**/*.tsbuildinfo\"",
-    "build": "tsc -b tsconfig.build.json && npm run browserify --workspaces --if-present && npm run build --workspace=packages/vscode-messenger-devtools/webview-ui",
+    "clean": "rimraf \"packages/**/lib\" \"packages/**/build\" \"packages/**/*.tsbuildinfo\" \"packages/*/node_modules\"",
+    "build": "tsc -b tsconfig.build.json && npm run browserify --workspaces --if-present && npm run build --workspace=packages/vscode-messenger-devtools/webview-ui && npm run lint",
     "watch": "tsc -b tsconfig.build.json -w",
     "test": "jest",
     "lint": "npm run lint --workspaces",
-    "publish": "npm run build && npm publish --access public"
+    "prepare-next": "npm run prepare:next --if-present --workspaces",
+    "publish-next": "npm publish --tag next --access public --workspaces",
+    "publish-latest": "npm run prepare && npm  publish --tag latest --access public --workspaces"
   },
   "devDependencies": {
     "@types/jest": "^28.0.0",

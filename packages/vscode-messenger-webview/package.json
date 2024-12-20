@@ -21,12 +21,12 @@
     "watch": "tsc --watch",
     "lint": "eslint src",
     "test": "jest --config ./jest.config.json",
-    "prepare-next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i minor)-next.$(git rev-parse --short HEAD)\"",
+    "prepare:next": "npm --workspaces-update false --no-git-tag-version version \"$(semver $npm_package_version)-next.$(git rev-parse --short HEAD)\"",
     "publish:next": "npm publish --tag next",
     "publish:latest": "npm publish --tag latest"
   },
   "dependencies": {
-    "vscode-messenger-common": "^0.5.0"
+    "vscode-messenger-common": "^0.5"
   },
   "devDependencies": {
     "jsdom": "^17.0",

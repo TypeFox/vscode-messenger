@@ -8,7 +8,5 @@ updates:
       - "/packages/vscode-messenger-devtools/webview-ui"
     schedule:
       interval: "weekly"
-    applies-to:
-      - version-updates
     ignore:
       - dependency-name: "*"

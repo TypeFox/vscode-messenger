@@ -21,12 +21,12 @@
     "watch": "tsc --watch",
     "lint": "eslint src",
     "test": "jest",
-    "prepare-next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i micro)-next.$(git rev-parse --short HEAD)\"",
+    "prepare:next": "npm --workspaces-update false --no-git-tag-version version \"$(semver $npm_package_version)-next.$(git rev-parse --short HEAD)\"",
     "publish:next": "npm publish --tag next",
     "publish:latest": "npm publish --tag latest"
   },
   "dependencies": {
-    "vscode-messenger-common": "^0.5.0"
+    "vscode-messenger-common": "^0.5"
   },
   "devDependencies": {
     "@types/vscode": "^1.53.0"
