@@ -56,7 +56,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         const storedState = restoreState();
         this.state = {
             selectedExtension: storedState?.selectedExtension ?? '',
-            datasetSrc: new Map(storedState?.datasetSrc) ?? new Map(),
+            datasetSrc: storedState?.datasetSrc ? new Map() : new Map(),
             chartsShown: storedState?.chartsShown ?? false,
             diagramShown: storedState?.diagramShown ?? false
         };

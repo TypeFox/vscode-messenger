@@ -98,10 +98,8 @@ export type HighlightData = { link: string | string[], type: string }
 
 export let updateLinks: (update: HighlightData[]) => void = () => void 0;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function Diagram(props: DiagramProps): JSX.Element {
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [highlightLinks, setHighlightLinks] = useState(Array<HighlightData>());
     updateLinks = setHighlightLinks;
 

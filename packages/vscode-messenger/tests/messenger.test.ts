@@ -7,8 +7,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
-import { MessengerEvent } from '../src/diagnostic-api';
+import type { Disposable, MessageParticipant, NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import { BROADCAST, CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isCancelRequestNotification, isRequestMessage } from 'vscode-messenger-common';
+import type { MessengerEvent } from '../src/diagnostic-api';
 import { Messenger } from '../src/messenger';
 
 const VIEW_TYPE_1 = 'test.view.type.1';
