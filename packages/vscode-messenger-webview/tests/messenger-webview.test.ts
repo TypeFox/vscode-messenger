@@ -326,14 +326,14 @@ describe('Webview Messenger', () => {
         messenger.start();
 
         const abortController = new AbortController();
-        setTimeout(() => abortController.abort(), 100);
+        setTimeout(() => abortController.abort('Test Abort Signal'), 100);
 
         const cancellable = createCancellationToken(abortController.signal);
         await messenger.sendRequest(stringRequest, HOST_EXTENSION, FORCE_HANDLER_TO_WAIT_PARAM, cancellable)
             .then(() => {
                 throw new Error('Expected to throw error');
             }).catch((error) => {
-                expect(error.name).toBe('Error');
+                expect(error.message).toBe('Test Abort Signal');
             });
     });
 });

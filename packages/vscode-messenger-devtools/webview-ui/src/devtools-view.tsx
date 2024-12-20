@@ -1,18 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import '@vscode/codicons/dist/codicon.css';
+import '@vscode/codicons/dist/codicon.ttf';
 import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
-import { CellFocusedEvent } from 'ag-grid-community';
+import type { CellFocusedEvent } from 'ag-grid-community';
 import React from 'react';
-import { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
-import { BROADCAST, HOST_EXTENSION, NotificationType, RequestType } from 'vscode-messenger-common';
+import type { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
+import type { NotificationType, RequestType } from 'vscode-messenger-common';
+import { BROADCAST, HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
-import '../node_modules/@vscode/codicons/dist/codicon.css';
-import '../node_modules/@vscode/codicons/dist/codicon.ttf';
-import { Diagram, HighlightData, toLinkId, updateLinks } from './components/diagram';
+import type { HighlightData } from './components/diagram';
+import { Diagram, toLinkId, updateLinks } from './components/diagram';
 import { EventTable } from './components/event-table';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
-import { DevtoolsComponentState, restoreState, storeState, vsCodeApi } from './utilities/view-state';
+import type { DevtoolsComponentState } from './utilities/view-state';
+import { restoreState, storeState, vsCodeApi } from './utilities/view-state';
 
 type DataEvent = {
     extension: string;

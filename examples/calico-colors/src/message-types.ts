@@ -1,5 +1,4 @@
-import { NotificationType } from "vscode-messenger-common";
-
+import type { NotificationType } from 'vscode-messenger-common';
 
 export const BugIntroduced: NotificationType<{
     command: string,
@@ -8,7 +7,7 @@ export const BugIntroduced: NotificationType<{
     method: 'bugIntroduced'
 };
 
-export const Refactor: NotificationType<{text:string}> = {
+export const Refactor: NotificationType<{ text: string }> = {
     method: 'refactor'
 };
 

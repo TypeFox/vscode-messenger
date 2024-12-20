@@ -1,6 +1,6 @@
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import { MouseEventHandler } from 'react';
-import { ExtensionData } from '../devtools-view';
+import type { MouseEventHandler } from 'react';
+import type { ExtensionData } from '../devtools-view';
 
 export function ViewHeader(props: {
     state: { selectedExtension: string | undefined; extensions: ExtensionData[]; },

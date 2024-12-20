@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import ForceGraph2D, { ForceGraphMethods, GraphData, LinkObject, NodeObject } from 'react-force-graph-2d';
+import type { ForceGraphMethods, GraphData, LinkObject, NodeObject } from 'react-force-graph-2d';
+import ForceGraph2D from 'react-force-graph-2d';
 import { HOST_EXTENSION_NAME } from '../devtools-view';
 
 type GraphObjectExtension = {
