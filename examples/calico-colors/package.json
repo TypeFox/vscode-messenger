@@ -70,7 +70,7 @@
     "build": "npm run compile",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./ && npm run browserify",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint src",
     "browserify": "browserify ./media/calico-colors/main.js > ./media/web-view-bundle-calico-colors.js && browserify ./media/coding-cat/main.js > ./media/web-view-bundle-coding-cat.js",
     "watch": "tsc -w -p ./"
   },

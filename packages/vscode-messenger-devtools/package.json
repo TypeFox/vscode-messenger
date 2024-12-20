@@ -44,7 +44,7 @@
     "clean": "rimraf lib",
     "watch": "tsc -watch -p ./ & cd ./webview-ui && npm run watch",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "test": "node ./lib/test/runTest.js"
   },
   "dependencies": {

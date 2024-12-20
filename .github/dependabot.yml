@@ -1,21 +1,48 @@
 version: 2
 updates:
-  # Enable version updates for npm dependencies
+  # Enable version updates for root dependencies
   - package-ecosystem: "npm"
     directory: "/" # Location of package.json file
     schedule:
       interval: "weekly"
-    applies-to:
-      - security-updates
+    ignore:
+      - dependency-type: "development"
     allow:
-      - dependency-type: "production"
+      - dependency-type: "all"
+        update-types: ["security"]
+
+  # Enable version updates for devtools extension dependencies
+  - package-ecosystem: "npm"
+    directory: "/packages/vscode-messenger-devtools"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-type: "development"
+    allow:
+      - dependency-type: "all"
+        update-types: ["security"]
+
+  # Enable version updates for webview-ui dependencies
+  - package-ecosystem: "npm"
+    directory: "/packages/vscode-messenger-devtools/webview-ui"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-type: "development"
+    allow:
+      - dependency-type: "all"
+        update-types: ["security"]
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/" # Location of GitHub Actions workflows
     schedule:
       interval: "weekly"
-    applies-to:
-      - security-updates
+    ignore:
+      - dependency-type: "development"
     allow:
-      - dependency-type: "production"
+      - dependency-type: "all"
+        update-types: ["security"]
+    labels:
+      - "dependencies"
+      - "github-actions"

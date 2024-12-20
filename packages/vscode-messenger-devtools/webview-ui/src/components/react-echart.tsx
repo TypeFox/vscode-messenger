@@ -150,9 +150,12 @@ export function ReactECharts({
         // Update chart
         if (chartRef.current !== null) {
             const chart = getInstanceByDom(chartRef.current);
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            if (chart)
-                loading === true ? chart.showLoading() : chart.hideLoading();
+            if (chart) {
+                if (loading === true)
+                    chart.showLoading();
+                else
+                    chart.hideLoading();
+            }
         }
     }, [loading, theme]);
     return <div ref={chartRef} style={{ width: '100%', height: '200px', ...style }} />;
