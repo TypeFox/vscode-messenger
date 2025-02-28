@@ -19,7 +19,7 @@
     "clean": "rimraf lib",
     "build": "tsc",
     "watch": "tsc --watch",
-    "lint": "eslint src",
+    "lint": "eslint src tests",
     "test": "jest",
     "prepare:next": "npm --workspaces-update false --no-git-tag-version version \"$(semver $npm_package_version)-next.$(git rev-parse --short HEAD)\"",
     "publish:next": "npm publish --tag next",

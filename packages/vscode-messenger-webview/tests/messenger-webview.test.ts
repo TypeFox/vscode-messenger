@@ -8,12 +8,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import crypto from 'crypto';
-import { CancellationTokenImpl, createCancelRequestMessage, Disposable, HOST_EXTENSION, isRequestMessage, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
-import { createCancellationToken, Messenger, VsCodeApi } from '../src';
+import type { Disposable, Message, MessageParticipant, NotificationType, RequestType } from 'vscode-messenger-common';
+import { CancellationTokenImpl, createCancelRequestMessage, HOST_EXTENSION, isRequestMessage } from 'vscode-messenger-common';
+import type { VsCodeApi } from '../src';
+import { createCancellationToken, Messenger } from '../src';
 
 Object.defineProperty(globalThis, 'crypto', {
     value: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getRandomValues: (arr: string | any[]) => crypto.randomBytes(arr.length)
     }
 });
