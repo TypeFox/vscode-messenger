@@ -1,5 +1,10 @@
 # Change Log of `vscode-messenger-devtools`
 
+## v0.5.1 (Feb. 2025)
+
+* Added response information to table hover. Only available if `withResponseData` property in vscode-messenger's `DiagnosticOptions` is set to `true`.
+* New graphical message flow visualization.
+
 ## v0.4.5 (March 2023)
 
 * Added parameter information to hover. Only available if `withParameterData` property in vscode-messenger's `DiagnosticOptions` is set to `true`.

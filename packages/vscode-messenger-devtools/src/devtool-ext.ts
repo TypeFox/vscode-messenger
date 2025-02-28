@@ -28,7 +28,7 @@ const ExtensionListRequest: RequestType<boolean, ExtensionData[]>= {
     method: 'extensionList'
 };
 
-const msg = new Messenger({ debugLog: true });
+const msg = new Messenger({ debugLog: false });
 const listeners = new Map<string, vscode.Disposable>();
 let panel: vscode.WebviewPanel | undefined;
 

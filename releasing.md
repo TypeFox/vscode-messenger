@@ -51,13 +51,14 @@ Extension package is `vscode-messenger-devtools`.
 ### Devtools extension build
 
 - Add a changelog.md entry
+- Install vsce `npm install -g @vscode/vsce` is not already installed
 
 ```bash
 cd ../vscode-messenger-devtools
-npm run vscode:prepublish
-npm run build:webview
-vsce package
+vsce package --no-dependencies
 ```
+
+- `vsce package` will also run `npm run vscode:prepublish`
 
 #### Publish Open VSX
 
@@ -69,7 +70,7 @@ vsce package
 
 #### Publish VSCode
 
-- Install vsce `npm install -g @vscode/vsce`
+- Install vsce `npm install -g @vscode/vsce` is not already installed
 
 - Create token in `https://dev.azure.com/typefox/_usersSettings/tokens`
 

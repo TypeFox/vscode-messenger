@@ -33,3 +33,5 @@ media
 **/.eslintrc.json
 **/*.map
 **/*.ts
+**/tsconfig.tsbuildinfo
+**/esbuild.config.js
