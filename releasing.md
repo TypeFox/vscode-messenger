@@ -66,14 +66,17 @@ vsce package --no-dependencies
 
 - Create token `https://open-vsx.org/user-settings/tokens` or use existing
 
-- Publish OpenVSX `npx ovsx publish -p <open vsx access token>`
+- Publish OpenVSX `npx ovsx publish --no-dependencies`. You will be prompted to enter the token.
 
 #### Publish VSCode
 
 - Install vsce `npm install -g @vscode/vsce` is not already installed
 
 - Create token in `https://dev.azure.com/typefox/_usersSettings/tokens`
+  - click Show all scopes link below the Scopes section in the Scopes list, scroll to Marketplace and select Manage scope
+  - click Create token
+  - copy the token
 
 - Login `vsce login typefox`
 
-- Publish: `vsce publish`
+- Publish: `vsce publish --no-dependencies`

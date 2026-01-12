@@ -174,12 +174,67 @@ export type NotificationHandler<P> = (params: P, sender: MessageParticipant) => 
 
 /**
  * Base API for Messenger implementations.
+ *
+ * The MessengerAPI provides a standardized interface for bidirectional communication between
+ * VS Code extensions and webviews, as well as between different webviews. It supports both
+ * request-response patterns and fire-and-forget notifications.
  */
 export interface MessengerAPI {
+    /**
+     * Send a request message to another participant and wait for a response.
+     *
+     * Requests follow a request-response pattern where the sender waits for a response
+     * from the receiver. The request can be canceled using the optional cancellation token.
+     *
+     * @template P The type of the request parameters
+     * @template R The type of the response data
+     * @param type The request type definition containing the method name
+     * @param receiver The target participant (extension, webview, etc.). Cannot be broadcast.
+     * @param params Optional parameters to send with the request
+     * @param cancelable Optional cancellation token to cancel the request
+     * @returns A Promise that resolves with the response data or rejects if the request fails
+     */
     sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R>
-    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): void
+
+    /**
+     * Register a handler for incoming request messages.
+     *
+     * The handler will be called whenever a request with the specified method is received.
+     * The handler should return the response data or throw an error for failed requests.
+     *
+     * @template P The type of the request parameters
+     * @template R The type of the response data
+     * @param type The request type to handle
+     * @param handler Function that processes the request and returns a response
+     * @returns A Disposable that can be used to unregister the handler
+     */
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Disposable
+
+    /**
+     * Send a notification message to one or more participants without expecting a response.
+     *
+     * Notifications are fire-and-forget messages that don't require acknowledgment.
+     * Unlike requests, notifications can be sent to broadcast receivers to notify all handlers.
+     *
+     * @template P The type of the notification parameters
+     * @param type The notification type definition containing the method name
+     * @param receiver The target participant (extension, webview, or broadcast)
+     * @param params Optional parameters to send with the notification
+     */
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void
-    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): void
+
+    /**
+     * Register a handler for incoming notification messages.
+     *
+     * The handler will be called whenever a notification with the specified method is received.
+     * Notification handlers don't return values and should not throw errors for normal operation.
+     *
+     * @template P The type of the notification parameters
+     * @param type The notification type to handle
+     * @param handler Function that processes the notification
+     * @returns A Disposable that can be used to unregister the handler
+     */
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Disposable
 }
 
 /**

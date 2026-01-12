@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 import type {
-    CancellationToken,
+    CancellationToken, Disposable,
     JsonAny, Message, MessageParticipant, MessengerAPI,
     NotificationHandler, NotificationMessage, NotificationType,
     RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
@@ -42,16 +42,77 @@ export class Messenger implements MessengerAPI {
         this.options = { ...defaultOptions, ...options };
     }
 
-    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Messenger {
+    /**
+     * Register a request handler.
+     * @param type The request type.
+     * @param handler The request handler.
+     * @returns A Disposable for automatic cleanup.
+     *
+     * @see {@link unregisterHandler} - Manual method to unregister handlers by method name
+     *
+     * @example
+     * ```typescript
+     * // Define message types
+     * const myRequest: RequestType<{ userId: string }, { name: string }> = { method: 'getUser' };
+     * const myNotification: NotificationType<string> = { method: 'statusUpdate' };
+     *
+     * // Register handlers and get disposables for cleanup
+     * const requestDisposable = messenger.onRequest(myRequest, handler);
+     * const notificationDisposable = messenger.onNotification(myNotification, notifHandler);
+     *
+     * // Manual unregistration
+     * messenger.unregisterHandler(myRequest.method);
+     *
+     * // Or use the disposable for automatic cleanup
+     * requestDisposable.dispose(); // Clean up when done
+     * ```
+     */
+    onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Disposable {
         this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
-        return this;
+        return {
+            dispose: () => {
+                this.unregisterHandler(type.method);
+            }
+        };
     }
 
-    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Messenger {
+    /**
+     * Register a notification handler.
+     * @param type The notification type.
+     * @param handler The notification handler.
+     * @returns A Disposable for automatic cleanup.
+     *
+     * @see {@link unregisterHandler} - Manual method to unregister handlers by method name
+     *
+     * @example
+     * ```typescript
+     * // Define message types
+     * const myNotification: NotificationType<{ status: string }> = { method: 'statusChanged' };
+     * const myRequest: RequestType<string, number> = { method: 'getCount' };
+     *
+     * // Register handlers and get disposables for cleanup
+     * const notificationDisposable = messenger.onNotification(myNotification, handler);
+     * const requestDisposable = messenger.onRequest(myRequest, reqHandler);
+     *
+     * // Manual unregistration
+     * messenger.unregisterHandler(myNotification.method);
+     *
+     * // Or use the disposable for automatic cleanup
+     * notificationDisposable.dispose(); // Clean up when done
+     * ```
+     */
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Disposable {
         this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
-        return this;
+        return {
+            dispose: () => {
+                this.unregisterHandler(type.method);
+            }
+        };
     }
 
+    /**
+     * Start the message processing.
+     */
     start(): void {
         if (this.started) {
             return;
@@ -63,6 +124,15 @@ export class Messenger implements MessengerAPI {
             }
         });
         this.started = true;
+    }
+
+    /**
+     * Unregisters a handler by its method name.
+     * @param method The method name of the handler to unregister. Use `<Type>.method` for type safety.
+     * @returns True if the handler was successfully unregistered, false otherwise.
+     */
+    unregisterHandler(method: string): boolean {
+        return this.handlerRegistry.delete(method);
     }
 
     protected async processMessage(msg: Message): Promise<void> {
@@ -166,6 +236,57 @@ export class Messenger implements MessengerAPI {
         }
     }
 
+    /**
+     * Send a request message to another participant and wait for a response.
+     *
+     * @template P The type of the request parameters
+     * @template R The type of the response data
+     * @param type The request type definition containing the method name
+     * @param receiver The target participant to send the request to (extension or specific webview)
+     * @param params Optional parameters to send with the request
+     * @param cancelable Optional cancellation token to cancel the request
+     * @returns A Promise that resolves with the response data or rejects if the request fails
+     *
+     * @throws {Error} If the receiver is a broadcast participant (broadcasts are only allowed for notifications)
+     *
+     * @example
+     * ```typescript
+     * // Define a request type
+     * const GetUserRequest: RequestType<{ userId: string }, { name: string, email: string }> = {
+     *     method: 'getUser'
+     * };
+     *
+     * // Send a request to the host extension
+     * const user = await messenger.sendRequest(
+     *     GetUserRequest,
+     *     HOST_EXTENSION,
+     *     { userId: '123' }
+     * );
+     * console.log(`User: ${user.name} (${user.email})`);
+     *
+     * // Send a request with cancellation support
+     * const controller = new AbortController();
+     * const cancelToken = createCancellationToken(controller.signal);
+     *
+     * try {
+     *     const result = await messenger.sendRequest(
+     *         GetUserRequest,
+     *         HOST_EXTENSION,
+     *         { userId: '456' },
+     *         cancelToken
+     *     );
+     * } catch (error) {
+     *     if (controller.signal.aborted) {
+     *         console.log('Request was cancelled');
+     *     } else {
+     *         console.error('Request failed:', error);
+     *     }
+     * }
+     *
+     * // Cancel the request after 5 seconds
+     * setTimeout(() => controller.abort('Timeout'), 5000);
+     * ```
+     */
     sendRequest<P, R>(type: RequestType<P, R>, receiver: MessageParticipant, params?: P, cancelable?: CancellationToken): Promise<R> {
         if (receiver.type === 'broadcast') {
             throw new Error('Only notification messages are allowed for broadcast.');
@@ -199,6 +320,50 @@ export class Messenger implements MessengerAPI {
         return pending.result;
     }
 
+    /**
+     * Send a notification message to another participant without expecting a response.
+     *
+     * Notifications are fire-and-forget messages that don't require acknowledgment or return values.
+     * Unlike requests, notifications can be sent to broadcast receivers to notify all registered handlers.
+     *
+     * @template P The type of the notification parameters
+     * @param type The notification type definition containing the method name
+     * @param receiver The target participant to send the notification to (extension, webview, or broadcast)
+     * @param params Optional parameters to send with the notification
+     *
+     * @example
+     * ```typescript
+     * // Define a notification type
+     * const UserLoggedInNotification: NotificationType<{ userId: string, timestamp: number }> = {
+     *     method: 'userLoggedIn'
+     * };
+     *
+     * // Send a notification to the host extension
+     * messenger.sendNotification(
+     *     UserLoggedInNotification,
+     *     HOST_EXTENSION,
+     *     { userId: '123', timestamp: Date.now() }
+     * );
+     *
+     * // Send a notification to a specific webview
+     * messenger.sendNotification(
+     *     UserLoggedInNotification,
+     *     { type: 'webview', webviewType: 'dashboard' },
+     *     { userId: '123', timestamp: Date.now() }
+     * );
+     *
+     * // Broadcast a notification to all registered handlers
+     * messenger.sendNotification(
+     *     UserLoggedInNotification,
+     *     BROADCAST,
+     *     { userId: '123', timestamp: Date.now() }
+     * );
+     *
+     * // Send a simple notification without parameters
+     * const RefreshNotification: NotificationType<void> = { method: 'refresh' };
+     * messenger.sendNotification(RefreshNotification, HOST_EXTENSION);
+     * ```
+     */
     sendNotification<P>(type: NotificationType<P>, receiver: MessageParticipant, params?: P): void {
         const message: NotificationMessage = {
             method: type.method,

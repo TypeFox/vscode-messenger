@@ -275,10 +275,37 @@ export class Messenger implements MessengerAPI {
         }
     }
 
+    /**
+     * Register a handler for incoming request messages.
+     *
+     * The handler will be called whenever a request with the specified method is received.
+     * The handler should return the response data or throw an error for failed requests.
+     *
+     * @template P The type of the request parameters
+     * @template R The type of the response data
+     * @param type The request type to handle
+     * @param handler Function that processes the request and returns a response
+     * @param options Additional options for handler registration
+     * @param options.sender Optional sender filter - if provided, only requests from this sender will trigger the handler
+     * @returns A Disposable that can be used to unregister the handler
+     */
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
         return this.registerHandler(type, handler, options);
     }
 
+    /**
+     * Register a handler for incoming notification messages.
+     *
+     * The handler will be called whenever a notification with the specified method is received.
+     * Notification handlers don't return values and should not throw errors for normal operation.
+     *
+     * @template P The type of the notification parameters
+     * @param type The notification type to handle
+     * @param handler Function that processes the notification
+     * @param options Additional options for handler registration
+     * @param options.sender Optional sender filter - if provided, only notifications from this sender will trigger the handler
+     * @returns A Disposable that can be used to unregister the handler
+     */
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
         return this.registerHandler(type, handler, options);
     }
