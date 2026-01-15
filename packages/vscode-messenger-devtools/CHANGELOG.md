@@ -1,5 +1,9 @@
 # Change Log of `vscode-messenger-devtools`
 
+## v0.6.0 (Jan. 2026)
+
+* Updated to use vscode-messenger v0.6.0 with enhanced handler management capabilities
+
 ## v0.5.1 (Feb. 2025)
 
 * Added response information to table hover. Only available if `withResponseData` property in vscode-messenger's `DiagnosticOptions` is set to `true`.

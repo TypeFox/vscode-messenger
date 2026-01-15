@@ -1,6 +1,6 @@
 {
   "name": "vscode-messenger-webview",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "VS Code Messenger: webview integration",
   "keywords": [
     "vscode",
@@ -26,7 +26,7 @@
     "publish:latest": "npm publish --tag latest"
   },
   "dependencies": {
-    "vscode-messenger-common": "^0.5"
+    "vscode-messenger-common": "^0.6"
   },
   "devDependencies": {
     "jsdom": "^17.0",

@@ -119,9 +119,11 @@ describe('Webview Messenger', () => {
     });
 
     test('Handle request from an extension', async () => {
-        new Messenger(vsCodeApi).onRequest(stringRequest, (r: string) => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.onRequest(stringRequest, (r: string) => {
             return 'handled:' + r;
-        }).start();
+        });
+        messenger.start();
         const expectation = new Promise<unknown>((resolve, reject) => {
             vsCodeApi.onReceivedMessage = resolve;
         });
@@ -141,14 +143,16 @@ describe('Webview Messenger', () => {
     });
 
     test('Handle request with async handler', async () => {
-        new Messenger(vsCodeApi).onRequest(stringRequest, async (r: string) => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.onRequest(stringRequest, async (r: string) => {
             const promise = new Promise<string>((resolve, reject) => {
                 setTimeout(() => {
                     resolve(r);
                 }, 100);
             });
             return 'handled:' + await promise;
-        }).start();
+        });
+        messenger.start();
         const expectation = new Promise<unknown>((resolve, reject) => {
             vsCodeApi.onReceivedMessage = resolve;
         });
@@ -198,11 +202,13 @@ describe('Webview Messenger', () => {
             resolver = resolve;
         });
 
-        new Messenger(vsCodeApi).onNotification(stringNotification, (note: string) => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.onNotification(stringNotification, (note: string) => {
             const result = 'handled:' + note;
             resolver(result);
             return;
-        }).start();
+        });
+        messenger.start();
 
         postWindowMsg({
             sender: HOST_EXTENSION,
@@ -243,9 +249,11 @@ describe('Webview Messenger', () => {
     });
 
     test('Handle request handler error', async () => {
-        new Messenger(vsCodeApi).onRequest(stringRequest, (r: string, sender: MessageParticipant) => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.onRequest(stringRequest, (r: string, sender: MessageParticipant) => {
             throw new Error(`Failed to handle request from: ${JSON.stringify(sender)}`);
-        }).start();
+        });
+        messenger.start();
         const expectation = new Promise<unknown>((resolve, reject) => {
             vsCodeApi.onReceivedMessage = resolve;
         });
@@ -289,7 +297,8 @@ describe('Webview Messenger', () => {
         let canceled = false;
         let handled = false;
         const toDispose: Disposable[] = [];
-        new Messenger(vsCodeApi).onRequest(stringRequest, async (param: string, sender, cancelation) => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.onRequest(stringRequest, async (param: string, sender, cancelation) => {
             let timeOut: any;
             toDispose.push(cancelation.onCancellationRequested(() => {
                 clearTimeout(timeOut);
@@ -302,7 +311,8 @@ describe('Webview Messenger', () => {
             });
             handled = true;
             return 'handled:' + param;
-        }).start();
+        });
+        messenger.start();
 
         // simulate extension request
         postWindowMsg({
@@ -336,5 +346,306 @@ describe('Webview Messenger', () => {
             }).catch((error) => {
                 expect(error.message).toBe('Test Abort Signal');
             });
+    });
+
+    test('onRequest should register handler and return disposable', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        let handled = false;
+        const disposable = messenger.onRequest(stringRequest, (params) => {
+            handled = true;
+            return `Response to: ${params}`;
+        });
+
+        // Verify it's a disposable with a dispose method
+        expect(typeof disposable.dispose).toBe('function');
+
+        // Send a request to trigger the handler
+        postWindowMsg({
+            id: 'test-1',
+            method: 'stringRequest',
+            params: 'test-param',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Verify handler was called
+        expect(handled).toBe(true);
+        expect(vsCodeApi.messages).toHaveLength(1);
+        expect(vsCodeApi.messages[0].result).toBe('Response to: test-param');
+
+        // Clear messages and reset
+        vsCodeApi.messages = [];
+        handled = false;
+
+        // Dispose the handler
+        disposable.dispose();
+
+        // Send another request - should not be handled
+        postWindowMsg({
+            id: 'test-2',
+            method: 'stringRequest',
+            params: 'test-param-2',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Verify handler was not called and error response was sent
+        expect(handled).toBe(false);
+        expect(vsCodeApi.messages).toHaveLength(1);
+        expect(vsCodeApi.messages[0].error).toBeDefined();
+        expect(vsCodeApi.messages[0].error.message).toBe('Unknown method: stringRequest');
+    });
+
+    test('onNotification should register handler and return disposable', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        let handled = false;
+        let receivedParams: string | undefined;
+
+        const disposable = messenger.onNotification(stringNotification, (params) => {
+            handled = true;
+            receivedParams = params;
+        });
+
+        // Verify it's a disposable with a dispose method
+        expect(typeof disposable.dispose).toBe('function');
+
+        // Send a notification to trigger the handler
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test-notification-param',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Verify handler was called
+        expect(handled).toBe(true);
+        expect(receivedParams).toBe('test-notification-param');
+
+        // Reset state
+        handled = false;
+        receivedParams = undefined;
+
+        // Dispose the handler
+        disposable.dispose();
+
+        // Send another notification - should not be handled
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test-notification-param-2',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Verify handler was not called
+        expect(handled).toBe(false);
+        expect(receivedParams).toBeUndefined();
+    });
+
+    test('Multiple disposable handlers should work independently', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        let handler1Called = false;
+        let handler2Called = false;
+
+        const disposable1 = messenger.onRequest(stringRequest, () => {
+            handler1Called = true;
+            return 'response1';
+        });
+
+        const disposable2 = messenger.onNotification(stringNotification, () => {
+            handler2Called = true;
+        });
+
+        // Test both handlers work
+        postWindowMsg({
+            id: 'test-req',
+            method: 'stringRequest',
+            params: 'test',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(handler1Called).toBe(true);
+        expect(handler2Called).toBe(true);
+
+        // Reset state
+        handler1Called = false;
+        handler2Called = false;
+        vsCodeApi.messages = [];
+
+        // Dispose only the first handler
+        disposable1.dispose();
+
+        // Test again
+        postWindowMsg({
+            id: 'test-req-2',
+            method: 'stringRequest',
+            params: 'test',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Only the notification handler should still work
+        expect(handler1Called).toBe(false);
+        expect(handler2Called).toBe(true);
+
+        // Should have error response for the request
+        expect(vsCodeApi.messages.some(msg => msg.error?.message === 'Unknown method: stringRequest')).toBe(true);
+
+        // Clean up
+        disposable2.dispose();
+    });
+
+    test('unregisterHandler should remove handlers by method name', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        let requestHandled = false;
+        let notificationHandled = false;
+
+        // Register handlers without method chaining
+        messenger.onRequest(stringRequest, (params: string) => {
+            requestHandled = true;
+            return `Response to: ${params}`;
+        });
+        messenger.onNotification(stringNotification, (params: string) => {
+            notificationHandled = true;
+        });
+
+        // Test that handlers work initially
+        postWindowMsg({
+            id: 'test-req-1',
+            method: 'stringRequest',
+            params: 'test-param',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test-notification',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(requestHandled).toBe(true);
+        expect(notificationHandled).toBe(true);
+        expect(vsCodeApi.messages).toHaveLength(1);
+        expect(vsCodeApi.messages[0].result).toBe('Response to: test-param');
+
+        // Reset state
+        requestHandled = false;
+        notificationHandled = false;
+        vsCodeApi.messages = [];
+
+        // Unregister the request handler and verify return value
+        const requestUnregistered = messenger.unregisterHandler('stringRequest');
+        expect(requestUnregistered).toBe(true); // Should return true for existing handler
+
+        // Test again - request should fail, notification should still work
+        postWindowMsg({
+            id: 'test-req-2',
+            method: 'stringRequest',
+            params: 'test-param-2',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test-notification-2',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(requestHandled).toBe(false);
+        expect(notificationHandled).toBe(true);
+
+        // Should have error response for the request
+        expect(vsCodeApi.messages).toHaveLength(1);
+        expect(vsCodeApi.messages[0].error).toBeDefined();
+        expect(vsCodeApi.messages[0].error.message).toBe('Unknown method: stringRequest');
+
+        // Reset state
+        notificationHandled = false;
+        vsCodeApi.messages = [];
+
+        // Unregister the notification handler and verify return value
+        const notificationUnregistered = messenger.unregisterHandler('stringNotification');
+        expect(notificationUnregistered).toBe(true); // Should return true for existing handler
+
+        // Test notification - should no longer be handled
+        postWindowMsg({
+            method: 'stringNotification',
+            params: 'test-notification-3',
+            receiver: { type: 'webview' },
+            sender: HOST_EXTENSION
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(notificationHandled).toBe(false);
+        expect(vsCodeApi.messages).toHaveLength(0); // No response for unhandled notifications
+    });
+
+    test('unregisterHandler should return correct boolean values', () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        // Should return false when unregistering a non-existent handler
+        const nonExistentResult = messenger.unregisterHandler('nonExistentMethod');
+        expect(nonExistentResult).toBe(false);
+
+        // Register a handler and verify unregistering returns true
+        messenger.onRequest(stringRequest, () => 'response');
+        const existingResult = messenger.unregisterHandler('stringRequest');
+        expect(existingResult).toBe(true);
+
+        // Should return false when unregistering the same method again
+        const alreadyUnregisteredResult = messenger.unregisterHandler('stringRequest');
+        expect(alreadyUnregisteredResult).toBe(false);
+
+        // Test with notification handlers too
+        messenger.onNotification(stringNotification, () => {});
+        const notificationResult = messenger.unregisterHandler('stringNotification');
+        expect(notificationResult).toBe(true);
+
+        const notificationAlreadyUnregisteredResult = messenger.unregisterHandler('stringNotification');
+        expect(notificationAlreadyUnregisteredResult).toBe(false);
     });
 });
