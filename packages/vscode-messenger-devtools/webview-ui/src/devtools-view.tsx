@@ -2,7 +2,6 @@
 import '@vscode/codicons/dist/codicon.css';
 import '@vscode/codicons/dist/codicon.ttf';
 import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
-import type { CellFocusedEvent } from 'ag-grid-community';
 import React from 'react';
 import type { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
 import type { NotificationType, RequestType } from 'vscode-messenger-common';
@@ -28,6 +27,10 @@ const PushDataNotification: NotificationType<DataEvent> = {
 
 const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
     method: 'extensionList'
+};
+
+const SaveFileRequest: RequestType<{ filename: string; content: string; }, boolean> = {
+    method: 'saveFile'
 };
 
 export interface ExtensionData {
@@ -154,6 +157,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     onClearClicked={async (extId: string | undefined) => await this.clearExtensionData(extId)}
                     onToggleDiagram={headerToggleDiagram}
                     onToggleCharts={onToggleCharts}
+                    onExportJSON={() => this.exportTableData('json')}
+                    onExportCSV={() => this.exportTableData('csv')}
                 />
                 <div id='ext-info'>
                     <span className='info-param-name'>Status:</span>
@@ -312,9 +317,98 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         }
     }
 
-    gridRowSelected(event: CellFocusedEvent<ExtendedMessengerEvent>): void {
+    exportTableData(format: 'json' | 'csv'): void {
+        const api = this.eventTable.getGridApi();
+        if (!api) {
+            console.warn('Grid API not available for export');
+            return;
+        }
+
+        const selectedExtension = this.selectedExtensionData();
+        const extensionName = selectedExtension?.id || 'messenger-events';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `${extensionName}-${timestamp}`;
+
+        try {
+            const dataToExport = api.getSelectedNodes().length > 0 ? api.getSelectedRows() : selectedExtension?.events ?? [];
+            if (format === 'json') {
+                const jsonData = JSON.stringify(dataToExport, null, 2);
+                this.saveFileViaVSCode(`${filename}.json`, jsonData);
+            } else if (format === 'csv') {
+                const csvData = this.toCsv(dataToExport);
+                this.saveFileViaVSCode(`${filename}.csv`, csvData);
+            }
+        } catch (error) {
+            console.error(`Failed to export as ${format}:`, error);
+        }
+    }
+
+    private toCsv(dataToExport: MessengerEvent[]) {
+        if (dataToExport.length === 0) {
+            return '';
+        }
+
+        // Define headers based on MessengerEvent/ExtendedMessengerEvent properties
+        const headers = ['id', 'type', 'sender', 'receiver', 'method', 'error', 'size', 'timestamp', 'parameter', 'timeAfterRequest', 'payloadInfo'];
+
+        const escapeCSVValue = (value: any): string => {
+            if (value === null || value === undefined) {
+                return '';
+            }
+
+            let stringValue: string;
+            if (typeof value === 'object') {
+                try {
+                    stringValue = JSON.stringify(value);
+                } catch (error) {
+                    stringValue = String(value);
+                }
+            } else {
+                stringValue = String(value);
+            }
+
+            // If value contains comma, newline, or double quote, wrap in quotes and escape internal quotes
+            if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('\r') || stringValue.includes('"')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+
+            return stringValue;
+        };
+
+        const rows = dataToExport.map(event => {
+            const extendedEvent = event as ExtendedMessengerEvent;
+            return headers.map(header =>
+                escapeCSVValue((extendedEvent as any)[header])
+            ).join(',');
+        });
+
+        return [headers.join(','), ...rows].join('\n');
+    }
+
+    private async saveFileViaVSCode(filename: string, content: string): Promise<void> {
+        try {
+            const success = await this.messenger.sendRequest(SaveFileRequest, HOST_EXTENSION, { filename, content });
+            if (!success) {
+                console.error('File save failed');
+            }
+        } catch (error) {
+            console.error('Error saving file via VS Code API:', error);
+        }
+    }
+
+    gridRowSelected(event: any): void {
         const selectedExt = this.selectedExtensionData();
-        if (selectedExt && event.rowIndex !== null) {
+        if (!selectedExt) return;
+
+        // Handle both CellFocusedEvent and SelectionChangedEvent
+        if (event.type === 'selectionChanged') {
+            // Handle row selection change - highlight the first selected row
+            const selectedNodes = event.api.getSelectedNodes();
+            if (selectedNodes.length > 0 && selectedNodes[0].data) {
+                this.updateDiagramEventHighlight(...this.createHighlightData(selectedExt, selectedNodes[0].data));
+            }
+        } else if (event.rowIndex !== null && event.rowIndex !== undefined) {
+            // Handle cell focus
             const row = event.api.getDisplayedRowAtIndex(event.rowIndex);
             if (row?.data) {
                 this.updateDiagramEventHighlight(...this.createHighlightData(selectedExt, row.data));

@@ -4,23 +4,27 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "watch",
-			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
+			"type": "shell",
+			"icon": {
+				"color": "terminal.ansiCyan",
+				"id": "gear"
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"command": "npm run watch",
+			"label": "Workspace TypeScript watch",
+			"problemMatcher": [
+				"$tsc-watch"
+			],
+			"group": "build"
 		},
 		{
 			"isBackground": true,
 			"type": "shell",
 			"icon": {
-				"color": "terminal.ansiCyan",
+				"color": "terminal.ansiGreen",
 				"id": "gear"
 			},
 			"options": {
@@ -29,9 +33,16 @@
 			"command": "npm run watch",
 			"label": "Devtools watch",
 			"problemMatcher": [
-				"$tsc"
+				{
+					"base": "$esbuild-watch",
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": "^Starting esbuild in watch mode",
+						"endsPattern": "^Watching for changes"
+					}
+				}
 			],
-			"dependsOrder": "parallel"
+			"group": "build"
 		},
 		{
 			"isBackground": true,
@@ -43,12 +54,33 @@
 			"options": {
 				"cwd": "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui"
 			},
-			"dependsOrder": "parallel",
 			"command": "npm run watch",
 			"label": "Devtools Webview watch",
 			"problemMatcher": [
-				"$tsc"
-			]
+				{
+					"base": "$tsc-watch",
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": "^.*tsc.*-w.*|^.*vite.*",
+						"endsPattern": "^.*Found 0 errors.*Watching for file changes.*|^.*ready in.*|^.*Local:.*"
+					}
+				}
+			],
+			"group": "build"
+		},
+		{
+			"label": "Watch All",
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"Workspace TypeScript watch",
+				"Devtools watch",
+				"Devtools Webview watch"
+			],
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
 		}
 	]
 }

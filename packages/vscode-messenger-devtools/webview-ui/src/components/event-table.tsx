@@ -74,6 +74,69 @@ export class EventTable extends React.Component {
         return this.gridRefObj.current?.api;
     }
 
+    /**
+     * Export grid data as JSON
+     * @param onlySelected - if true, exports only selected rows
+     * @returns JSON string of the grid data
+     */
+    exportAsJSON(onlySelected: boolean = false): string {
+        const api = this.getGridApi();
+        if (!api) return '[]';
+
+        const rowData: any[] = [];
+
+        if (onlySelected) {
+            // Export only selected rows
+            const selectedNodes = api.getSelectedNodes();
+            selectedNodes.forEach(node => {
+                if (node.data) {
+                    rowData.push(node.data);
+                }
+            });
+        } else {
+            // Export all rows (respecting current filter/sort)
+            api.forEachNodeAfterFilterAndSort(node => {
+                if (node.data) {
+                    rowData.push(node.data);
+                }
+            });
+        }
+
+        return JSON.stringify(rowData, null, 2);
+    }
+
+    /**
+     * Export grid data as JSON using CSV conversion
+     * @param params - CSV export parameters
+     * @returns JSON string of the grid data
+     */
+    exportAsJSONFromCSV(params?: any): string {
+        const api = this.getGridApi();
+        if (!api) return '[]';
+
+        // Get CSV data
+        const csvData = api.getDataAsCsv(params);
+        if (!csvData) return '[]';
+
+        // Parse CSV to JSON
+        const lines = csvData.split('\n').filter(line => line.trim());
+        if (lines.length < 2) return '[]';
+
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+        const jsonData = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+            const row: any = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index] || '';
+            });
+            jsonData.push(row);
+        }
+
+        return JSON.stringify(jsonData, null, 2);
+    }
+
     render(): JSX.Element {
         return (
             <div id='event-table'
@@ -86,7 +149,6 @@ export class EventTable extends React.Component {
                                 filter: true, resizable: true, sortable: true,
                                 cellStyle: (params: any) => {
                                     if (params.value === 'Police') {
-                                        //mark police cells as red
                                         return { color: 'red', backgroundColor: 'green' };
                                     }
                                     return null;
@@ -98,7 +160,9 @@ export class EventTable extends React.Component {
                     rowHeight={25}
                     headerHeight={28}
                     enableBrowserTooltips={true}
+                    rowSelection="multiple"
                     onCellFocused={(e) => this.props.gridRowSelected(e)}
+                    onSelectionChanged={(e) => this.props.gridRowSelected(e)}
                 >
                 </AgGridReact>
             </div>

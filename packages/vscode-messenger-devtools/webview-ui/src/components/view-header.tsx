@@ -9,6 +9,8 @@ export function ViewHeader(props: {
     onClearClicked: (extId: string | undefined) => void,
     onToggleCharts: MouseEventHandler<HTMLElement> | undefined,
     onToggleDiagram: () => void,
+    onExportJSON?: () => void,
+    onExportCSV?: () => void,
 }): JSX.Element {
     return (
         <div id='header'>
@@ -25,6 +27,16 @@ export function ViewHeader(props: {
             <VSCodeButton className='clear-button' appearance='icon' aria-label='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)}>
                 <span className='codicon codicon-trashcan' title='Clear Data' />
             </VSCodeButton>
+            {props.onExportJSON && (
+                <VSCodeButton className='export-json-button' appearance='icon' aria-label='Export as JSON' onClick={props.onExportJSON}>
+                    <span className='codicon codicon-file-code' title='Export as JSON' />
+                </VSCodeButton>
+            )}
+            {props.onExportCSV && (
+                <VSCodeButton className='export-csv-button' appearance='icon' aria-label='Export as CSV' onClick={props.onExportCSV}>
+                    <span className='codicon codicon-file-text' title='Export as CSV' />
+                </VSCodeButton>
+            )}
             <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={props.onToggleCharts}>
                 <span className='codicon codicon-graph' title='Toggle Charts' />
             </VSCodeButton>

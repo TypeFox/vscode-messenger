@@ -47,7 +47,7 @@
                 "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
                 "${workspaceFolder}/packages/vscode-messenger/lib/**/*.js",
             ],
-            "preLaunchTask": "${defaultBuildTask}"
+            "preLaunchTask": "Watch All"
         }
     ]
 }

@@ -39,12 +39,14 @@
     "install:all": "npm install && npm --prefix ./webview-ui install ./webview-ui",
     "start:webview": "npm --prefix ./webview-ui run start",
     "build:webview": "npm --prefix ./webview-ui run build",
+    "watch:webview": "npm --prefix ./webview-ui run watch",
     "vscode:prepublish": "npm run build && npm run build:webview",
-    "build": "tsc -p ./",
-    "clean": "rimraf lib lib",
-    "watch": "esbuild --watch",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
+    "build": "node esbuild.config.js",
+    "clean": "rimraf lib && npm --prefix ./webview-ui run clean",
+    "watch": "node esbuild.config.js --watch",
+    "watch:all": "concurrently \"npm run watch\" \"npm run watch:webview\"",
+    "pretest": "npm run build && npm run lint",
+    "lint": "eslint src && npm --prefix ./webview-ui run lint",
     "compile": "node esbuild.config.js",
     "test": "node ./lib/test/runTest.js"
    },
@@ -55,6 +57,7 @@
   "devDependencies": {
     "@types/vscode": "^1.70.0",
     "@types/vscode-webview": "^1.57.0",
+    "concurrently": "^7.6.0",
     "esbuild": "^0.25.0"
   },
   "bugs": "https://github.com/TypeFox/vscode-messenger/issues",

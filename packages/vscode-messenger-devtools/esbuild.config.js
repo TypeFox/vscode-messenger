@@ -1,7 +1,8 @@
-const { build } = require('esbuild');
-const path = require('path');
+const { build, context } = require('esbuild');
 
-build({
+const isWatch = process.argv.includes('--watch');
+
+const config = {
   entryPoints: ['./src/devtool-ext.ts'],
   bundle: true,
   platform: 'node',
@@ -10,8 +11,8 @@ build({
   external: ['vscode'], // Exclude the vscode module
   sourcemap: true,
   tsconfig: './tsconfig.json',
-   // Include vscode-messenger in the bundle
-   plugins: [
+  // Include vscode-messenger in the bundle
+  plugins: [
     {
       name: 'include-vscode-messenger',
       setup(build) {
@@ -21,4 +22,26 @@ build({
       }
     }
   ]
-}).catch(() => process.exit(1));
+};
+
+async function main() {
+  try {
+    if (isWatch) {
+      console.log('Starting esbuild in watch mode...');
+      const ctx = await context(config);
+      await ctx.watch();
+      console.log('Watching for changes...');
+      // Keep the process running
+      process.stdin.resume();
+    } else {
+      console.log('Building extension with esbuild...');
+      await build(config);
+      console.log('Build completed successfully!');
+    }
+  } catch (error) {
+    console.error('Build failed:', error);
+    process.exit(1);
+  }
+}
+
+main();

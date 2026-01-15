@@ -6,14 +6,14 @@
     "npm": "^10.8.0"
   },
   "scripts": {
-    "clean": "rimraf \"packages/**/lib\" \"packages/**/build\" \"packages/**/*.tsbuildinfo\"",
+    "clean": "rimraf \"packages/**/lib\" \"packages/**/build\" \"packages/**/*.tsbuildinfo\" \"examples/**/out\" \"examples/**/*.tsbuildinfo\" \"examples/**/media/web-view-bundle*.js\"",
     "build": "tsc -b tsconfig.build.json && npm run browserify --workspaces --if-present && npm run build --workspace=packages/vscode-messenger-devtools/webview-ui && npm run lint",
     "watch": "tsc -b tsconfig.build.json -w",
     "test": "jest",
     "lint": "npm run lint --workspaces",
     "prepare-next": "npm run prepare:next --if-present --workspaces",
     "publish-next": "npm publish --tag next --access public --workspaces",
-    "publish-latest": "npm run prepare && npm  publish --tag latest --access public --workspaces"
+    "publish-latest": "npm publish --tag latest --access public --workspaces"
   },
   "devDependencies": {
     "@types/jest": "^28.0.0",

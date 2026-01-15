@@ -5,6 +5,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { ExtensionInfo, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
 import { isMessengerDiagnostic, Messenger } from 'vscode-messenger';
 import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
@@ -20,17 +21,18 @@ type DataEvent = {
     event: MessengerEvent;
 };
 
-const PushDataNotification: NotificationType<DataEvent>= {
+const PushDataNotification: NotificationType<DataEvent> = {
     method: 'pushData'
 };
 
-const ExtensionListRequest: RequestType<boolean, ExtensionData[]>= {
+const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
     method: 'extensionList'
 };
 
 const msg = new Messenger({ debugLog: false });
 const listeners = new Map<string, vscode.Disposable>();
 let panel: vscode.WebviewPanel | undefined;
+let lastExportDirectory: string | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -53,8 +55,54 @@ export function activate(context: vscode.ExtensionContext) {
                     } as ExtensionData;
                 });
             });
+
+            const saveFileDisposable = msg.onRequest({ method: 'saveFile' }, async (params: { filename: string; content: string }) => {
+                try {
+                    // Determine the best default location
+                    let defaultUri: vscode.Uri;
+
+                    // Priority order: last used directory > workspace folder > home directory
+                    if (lastExportDirectory) {
+                        // Use last export directory if available
+                        defaultUri = vscode.Uri.file(path.join(lastExportDirectory, params.filename));
+                    } else if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                        // Use the first workspace folder
+                        defaultUri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, params.filename);
+                    } else {
+                        // Fallback to user's home directory or current filename
+                        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+                        if (homeDir) {
+                            defaultUri = vscode.Uri.file(path.join(homeDir, params.filename));
+                        } else {
+                            defaultUri = vscode.Uri.file(params.filename);
+                        }
+                    }
+
+                    const uri = await vscode.window.showSaveDialog({
+                        defaultUri: defaultUri,
+                        filters: {
+                            'All files': ['*']
+                        },
+                        saveLabel: 'Export'
+                    });
+
+                    if (uri) {
+                        lastExportDirectory = path.dirname(uri.fsPath);
+                        await vscode.workspace.fs.writeFile(uri, Buffer.from(params.content, 'utf8'));
+                        vscode.window.showInformationMessage(`File exported: ${uri.fsPath}`);
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Error saving file:', error);
+                    vscode.window.showErrorMessage(`Failed to save file: ${error}`);
+                    return false;
+                }
+            });
+
             panel.onDidDispose(() => {
                 disposable.dispose();
+                saveFileDisposable.dispose();
                 panel = undefined;
             }
             );
@@ -71,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
         listenToNotifications(compatibleExtensions());
     });
     console.debug('Messenger Devtools activated.');
-    return msg.diagnosticApi({ withParameterData: true, withResponseData: true});
+    return msg.diagnosticApi({ withParameterData: true, withResponseData: true });
 }
 
 export function deactivate(): void {

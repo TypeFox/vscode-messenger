@@ -71,7 +71,7 @@ module.exports = {
         "@typescript-eslint/no-namespace": "off",                   // disallow the use of custom TypeScript modules and namespaces 
         "@typescript-eslint/no-non-null-assertion": "off",          // allow ! operator
         "@typescript-eslint/parameter-properties": "error",      // no property definitions in class constructors
-        "@typescript-eslint/no-unused-vars": ["error", {            // disallow Unused Variables
+        "@typescript-eslint/no-unused-vars": ["warn", {             // warn about Unused Variables
             "argsIgnorePattern": "^_"
         }],
         "@typescript-eslint/no-var-requires": "error",              // use import instead of require

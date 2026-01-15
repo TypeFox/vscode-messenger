@@ -10,10 +10,11 @@ Packages are:
 
 ### Release next version
 
-Run install to resolve dependencies, that also runs prepare steps `clean` and `build`.
+Install dependencies and build the project:
 
 ```bash
 npm install
+npm run build
 ```
 
 Update versions to add `-next.<git-commit>` suffix.
@@ -30,10 +31,11 @@ npm run publish-next
 
 ### Release new version
 
-Run install to resolve dependencies, that also runs prepare steps `clean` and `build`.
+Install dependencies and build the project:
 
 ```bash
 npm install
+npm run build
 ```
 
 Manually change versions and dependency versions. This includes package.json files in the NPM packages. See the list above.
