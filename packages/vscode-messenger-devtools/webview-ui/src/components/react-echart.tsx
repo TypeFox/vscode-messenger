@@ -14,7 +14,11 @@ export interface ReactEChartsProps {
 
 export type ChartData = Map<string, { notification: [number, number]; response: [number, number]; request: [number, number]; }>;
 
-export function createOptions(charSeries: Array<{ name: string, data: number[] }>, yAxis: string[], legendFormat = ''): ReactEChartsProps['option'] {
+export function createOptions(charSeries: Array<{ name: string, data: number[] }>, yAxis: string[], legendFormat = '', theme?: 'light' | 'dark'): ReactEChartsProps['option'] {
+    // Use VS Code theme colors for better integration
+    // In dark theme, use a lighter gray; in light theme, use a darker gray for better contrast
+    const legendTextColor = theme === 'dark' ? '#cccccc' : '#616161';
+
     const option: ReactEChartsProps['option'] = {
         tooltip: {
             trigger: 'axis',
@@ -24,7 +28,10 @@ export function createOptions(charSeries: Array<{ name: string, data: number[] }
         },
         legend: {
             orient: 'horizontal',
-            formatter: `{name}${legendFormat}`
+            formatter: `{name}${legendFormat}`,
+            textStyle: {
+                color: legendTextColor
+            }
         },
         grid: {
             show: true,

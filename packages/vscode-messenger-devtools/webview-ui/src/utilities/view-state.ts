@@ -7,7 +7,8 @@ export function storeState(uiState: DevtoolsComponentState): void {
         selectedExtension: uiState.selectedExtension,
         datasetSrc: [...uiState.datasetSrc],
         chartsShown: uiState.chartsShown,
-        diagramShown: uiState.diagramShown
+        diagramShown: uiState.diagramShown,
+        theme: uiState.theme
     });
 }
 
@@ -18,10 +19,17 @@ export  function restoreState(): DevtoolsComponentState | undefined {
             selectedExtension: stored.selectedExtension,
             datasetSrc: new Map(stored.datasetSrc),
             chartsShown: stored.chartsShown,
-            diagramShown: stored.diagramShown
+            diagramShown: stored.diagramShown,
+            theme: stored.theme || getVSCodeTheme() // fallback to current theme if not stored
         };
     }
     return undefined;
+}
+
+// Helper function to detect VS Code theme
+export function getVSCodeTheme(): 'light' | 'dark' {
+    const themeKind = document.body.getAttribute('data-vscode-theme-kind');
+    return themeKind?.includes('dark') ? 'dark' : 'light';
 }
 
 export interface DevtoolsComponentState {
@@ -29,4 +37,5 @@ export interface DevtoolsComponentState {
     datasetSrc: Map<string, ExtensionData>
     chartsShown: boolean
     diagramShown: boolean
+    theme: 'light' | 'dark'
 }

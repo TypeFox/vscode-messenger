@@ -2,6 +2,12 @@
 
 ## v0.6.0 (Jan. 2026)
 
+* **New:** Added data export functionality - export messenger events as JSON or CSV files
+  * Export all events for the selected extension or only selected table rows
+  * Files are automatically saved with timestamped filenames
+  * JSON export preserves full event structure including parameters and metadata
+  * CSV export includes all event properties with proper escaping for complex data
+* Improved dark theme support for charts and overall UI
 * Updated to use vscode-messenger v0.6.0 with enhanced handler management capabilities
 
 ## v0.5.1 (Feb. 2025)

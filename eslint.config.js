@@ -72,7 +72,8 @@ module.exports = {
         "@typescript-eslint/no-non-null-assertion": "off",          // allow ! operator
         "@typescript-eslint/parameter-properties": "error",      // no property definitions in class constructors
         "@typescript-eslint/no-unused-vars": ["warn", {             // warn about Unused Variables
-            "argsIgnorePattern": "^_"
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
         }],
         "@typescript-eslint/no-var-requires": "error",              // use import instead of require
         "@typescript-eslint/prefer-for-of": "error",                // prefer for-of loop over arrays

@@ -14,7 +14,7 @@ import { EventTable } from './components/event-table';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
 import type { DevtoolsComponentState } from './utilities/view-state';
-import { restoreState, storeState, vsCodeApi } from './utilities/view-state';
+import { restoreState, storeState, vsCodeApi, getVSCodeTheme } from './utilities/view-state';
 
 type DataEvent = {
     extension: string;
@@ -53,6 +53,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
 
     messenger: Messenger;
     eventTable: EventTable;
+    private themeObserver: MutationObserver | null = null;
 
     constructor() {
         super({});
@@ -61,7 +62,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             selectedExtension: storedState?.selectedExtension ?? '',
             datasetSrc: storedState?.datasetSrc ? new Map() : new Map(),
             chartsShown: storedState?.chartsShown ?? false,
-            diagramShown: storedState?.diagramShown ?? false
+            diagramShown: storedState?.diagramShown ?? false,
+            theme: storedState?.theme ?? getVSCodeTheme()
         };
         this.eventTable = new EventTable({ gridRowSelected: (e) => this.gridRowSelected(e) });
         this.messenger = new Messenger(vsCodeApi, { debugLog: true });
@@ -83,13 +85,46 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             return;
         }).catch(err => console.error(err));
 
+        // Set up theme change observer
+        this.setupThemeObserver();
+    }
+
+    componentWillUnmount() {
+        // Clean up theme observer
+        if (this.themeObserver) {
+            this.themeObserver.disconnect();
+            this.themeObserver = null;
+        }
+    }
+
+    private setupThemeObserver() {
+        // Watch for changes to the data-vscode-theme-kind attribute
+        this.themeObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-vscode-theme-kind') {
+                    const newTheme = getVSCodeTheme();
+                    if (newTheme !== this.state.theme) {
+                        // Update state with new theme - this will trigger chart re-render
+                        // and table will automatically pick up new CSS theme class
+                        this.updateState({ ...this.state, theme: newTheme }, true);
+                    }
+                }
+            });
+        });
+
+        // Start observing
+        this.themeObserver.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['data-vscode-theme-kind']
+        });
+
     }
 
     render() {
-
+        const theme = this.state.theme;
         const charSeries = collectChartData(this.selectedExtensionData()?.events ?? []);
-        const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)');
-        const optionCount = createOptions(charSeries.series[1], charSeries.senderY);
+        const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)', theme);
+        const optionCount = createOptions(charSeries.series[1], charSeries.senderY, '', theme);
 
         const selectedExt = this.selectedExtensionData();
         const updateState = (selectedId: string) => {
@@ -360,7 +395,8 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             if (typeof value === 'object') {
                 try {
                     stringValue = JSON.stringify(value);
-                } catch (error) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                } catch (_error) {
                     stringValue = String(value);
                 }
             } else {
