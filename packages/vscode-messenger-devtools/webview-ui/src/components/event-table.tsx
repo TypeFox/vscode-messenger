@@ -105,38 +105,6 @@ export class EventTable extends React.Component {
         return JSON.stringify(rowData, null, 2);
     }
 
-    /**
-     * Export grid data as JSON using CSV conversion
-     * @param params - CSV export parameters
-     * @returns JSON string of the grid data
-     */
-    exportAsJSONFromCSV(params?: any): string {
-        const api = this.getGridApi();
-        if (!api) return '[]';
-
-        // Get CSV data
-        const csvData = api.getDataAsCsv(params);
-        if (!csvData) return '[]';
-
-        // Parse CSV to JSON
-        const lines = csvData.split('\n').filter(line => line.trim());
-        if (lines.length < 2) return '[]';
-
-        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-        const jsonData = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
-            const row: any = {};
-            headers.forEach((header, index) => {
-                row[header] = values[index] || '';
-            });
-            jsonData.push(row);
-        }
-
-        return JSON.stringify(jsonData, null, 2);
-    }
-
     render(): JSX.Element {
         return (
             <div id='event-table'
