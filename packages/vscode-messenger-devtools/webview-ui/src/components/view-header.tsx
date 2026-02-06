@@ -1,5 +1,8 @@
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import type { MouseEventHandler } from 'react';
+import type { CodiconName, SelectOption } from 'baukasten-ui';
+import { Button, Icon, Select, Tooltip } from 'baukasten-ui';
+
+import type { CSSProperties, MouseEventHandler } from 'react';
 import type { ExtensionData } from '../devtools-view';
 
 export function ViewHeader(props: {
@@ -13,40 +16,81 @@ export function ViewHeader(props: {
     onExportCSV?: () => void,
 }): JSX.Element {
     return (
-        <div id='header'>
-            <VSCodeDropdown value={props.state.selectedExtension} title='List of extensions using vscode-messenger.'>
-                {props.state.extensions.map((ext) => (
-                    <VSCodeOption key={ext.id} value={ext.id} onClick={() => props.onExtensionSelected(ext.id)}>
-                        {ext.name}
-                    </VSCodeOption>
-                ))}
-            </VSCodeDropdown>
-            <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh Extension Data' onClick={props.onRefreshClicked}>
-                <span className='codicon codicon-refresh' title='Refresh' />
-            </VSCodeButton>
-            <VSCodeButton className='clear-button' appearance='icon' aria-label='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)}>
-                <span className='codicon codicon-trashcan' title='Clear Data' />
-            </VSCodeButton>
-            {props.onExportJSON && (
-                <VSCodeButton className='export-json-button' appearance='icon' aria-label='Export as JSON' onClick={props.onExportJSON}>
-                    <span className='codicon codicon-file-code' title='Export as JSON' />
-                </VSCodeButton>
-            )}
-            {props.onExportCSV && (
-                <VSCodeButton className='export-csv-button' appearance='icon' aria-label='Export as CSV' onClick={props.onExportCSV}>
-                    <span className='codicon codicon-file-text' title='Export as CSV' />
-                </VSCodeButton>
-            )}
-            <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={props.onToggleCharts}>
-                <span className='codicon codicon-graph' title='Toggle Charts' />
-            </VSCodeButton>
-            <VSCodeButton className='toggle-diagram-button' appearance='icon' aria-label='Toggle Diagram' onClick={
-                () => {
-                    props.onToggleDiagram();
-                }
-            }>
-                <span className='codicon codicon-type-hierarchy' title='Toggle Diagram' />
-            </VSCodeButton>
-        </div>
+        <>
+            <div id='header'>
+                <Tooltip content="List of extensions using vscode-messenger.">
+                    <Select
+                        value={props.state.selectedExtension ?? ''}
+                        placeholder='List of extensions using vscode-messenger'
+                        onChange={(value) => props.onExtensionSelected(value)}
+                        options={
+                            props.state.extensions.map((ext) => (
+                                {
+                                    label: ext.name,
+                                    value: ext.id,
+                                    description: ext.id
+                                } as SelectOption))
+                        }
+                    />
+                </Tooltip>
+
+                <IconButton icon='refresh' title='Refresh Extension Data' onClick={props.onRefreshClicked} />
+                <IconButton icon='trashcan' title='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)} />
+                {props.onExportJSON && (
+                    <IconButton icon='file-code' title='Export as JSON' onClick={props.onExportJSON} />
+                )}
+                {props.onExportCSV && (
+                    <IconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
+                )}
+
+                <IconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
+                <IconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
+            </div>
+            <div id='header'>
+                <VSCodeDropdown value={props.state.selectedExtension} title='List of extensions using vscode-messenger.'>
+                    {props.state.extensions.map((ext) => (
+                        <VSCodeOption key={ext.id} value={ext.id}
+                            onClick={() => props.onExtensionSelected(ext.id)}>
+                            {ext.name}
+                        </VSCodeOption>
+                    ))}
+                </VSCodeDropdown>
+
+                <VscodeIconButton icon='refresh' title='Refresh Extension Data' onClick={props.onRefreshClicked} />
+                <VscodeIconButton icon='trashcan' title='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)} />
+
+                {props.onExportJSON && (
+                    <VscodeIconButton icon='file-code' title='Export as JSON' onClick={props.onExportJSON} />
+                )}
+                {props.onExportCSV && (
+                    <VscodeIconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
+                )}
+
+                <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
+                <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
+            </div>
+        </>
+    );
+}
+
+// TODO move back to css file
+const buttonStyle = {
+    marginLeft: '4px',
+    marginTop: 'auto'
+};
+
+function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
+    return (
+        <Button variant="ghost" style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
+            <Icon name={props.icon} title={props.title} />
+        </Button>
+    );
+}
+
+function VscodeIconButton(props: { icon: string, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
+    return (
+        <VSCodeButton appearance='icon' style={{ ...buttonStyle, ...props.sx }} aria-label={props.title} onClick={props.onClick}>
+            <span className={'codicon codicon-' + props.icon} title={props.title} />
+        </VSCodeButton>
     );
 }

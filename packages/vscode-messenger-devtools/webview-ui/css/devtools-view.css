@@ -76,31 +76,29 @@ body[data-vscode-theme-kind="vscode-dark"] {
 .refresh-button,
 .export-json-button,
 .export-csv-button,
-.clear-button {
+.trashcan-button {
   margin-left: 4px;
   margin-top: auto;
 }
 
+/* unused */
 .toggle-charts-button {
   margin-left: auto;
   margin-top: auto;
 }
 
-span.info-param-name {
-  margin-right: 10px;
+span.codicon.codicon-pass,
+i.codicon.codicon-pass {
+  color: green;
 }
 
-.ext-info-badge {
-  vertical-align: 'center';
-  margin-right: 10px;
-}
-
-
-span.ext-info-badge.codicon.codicon-warning {
+span.codicon.codicon-warning,
+i.codicon.codicon-warning {
   color: #eba800;
 }
 
-span.ext-info-badge.codicon.codicon-stop {
+span.codicon.codicon-stop,
+i.codicon.codicon-stop {
   color: #ec3f00;
 }
 
@@ -110,9 +108,6 @@ span.table-cell.codicon.codicon-stop {
   padding-left: 10px;
 }
 
-span.ext-info-badge.codicon.codicon-pass {
-  color: green;
-}
 
 /* Table row colors*/
 

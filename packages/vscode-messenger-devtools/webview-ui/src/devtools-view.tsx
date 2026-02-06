@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import '@vscode/codicons/dist/codicon.css';
 import '@vscode/codicons/dist/codicon.ttf';
-import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
+import 'baukasten-ui/dist/baukasten-base.css';
+import 'baukasten-ui/dist/baukasten-vscode.css';
 import React from 'react';
 import type { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
 import type { NotificationType, RequestType } from 'vscode-messenger-common';
@@ -11,10 +12,11 @@ import '../css/devtools-view.css';
 import type { HighlightData } from './components/diagram';
 import { Diagram, toLinkId, updateLinks } from './components/diagram';
 import { EventTable } from './components/event-table';
+import { ExtensionInfoPanel } from './components/extension-info';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
 import type { DevtoolsComponentState } from './utilities/view-state';
-import { restoreState, storeState, vsCodeApi, getVSCodeTheme } from './utilities/view-state';
+import { getVSCodeTheme, restoreState, storeState, vsCodeApi } from './utilities/view-state';
 
 type DataEvent = {
     extension: string;
@@ -185,6 +187,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
 
         return (
             <>
+                {/* Header Control Component */}
                 <ViewHeader
                     state={{ selectedExtension: this.state.selectedExtension, extensions: Array.from(this.state.datasetSrc.values()) }}
                     onExtensionSelected={(extId: string) => updateState(extId)}
@@ -195,40 +198,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     onExportJSON={() => this.exportTableData('json')}
                     onExportCSV={() => this.exportTableData('csv')}
                 />
-                <div id='ext-info'>
-                    <span className='info-param-name'>Status:</span>
-                    <span
-                        className={
-                            'ext-info-badge codicon codicon-'
-                            + (!selectedExt?.active ? 'warning' : (!selectedExt?.exportsDiagnosticApi ? 'stop' : 'pass'))
-                        }
-                        title={
-                            'Extension '
-                            + (!selectedExt?.active ? 'is not active' :
-                                (!selectedExt?.exportsDiagnosticApi ? "doesn't export diagnostic API" : 'is active and exports diagnostic API.'))
-                        } />
 
-                    <span className='info-param-name'>Views:</span>
-                    <VSCodeBadge className='ext-info-badge' title={
-                        'Registered views:\n' + (selectedExt?.info?.webviews ?? []).map(entry => '  ' + entry.id).join('\n')
-                    }>{selectedExt?.info?.webviews.length ?? 0}</VSCodeBadge>
-
-                    <span className='info-param-name'>Listeners:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title='Number of registered diagnostic listeners.'>{selectedExt?.info?.diagnosticListeners ?? 0}</VSCodeBadge>
-
-                    <span className='info-param-name'>Handlers:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title={
-                            'Number of added method handlers: \n' + (selectedExt?.info?.handlers ?? []).map(entry => '  ' + entry.method + ': ' + entry.count).join('\n')
-                        }>{Array.from(selectedExt?.info?.handlers?.values() ?? []).length}</VSCodeBadge>
-                    <span className='info-param-name'>Pending Req.:</span>
-                    <VSCodeBadge className='ext-info-badge'
-                        title='Number of pending (incoming + outgoing) requests.'>{selectedExt?.info?.pendingRequest ?? 0}</VSCodeBadge>
-
-                    <span className='info-param-name'>Events:</span>
-                    <VSCodeBadge className='ext-info-badge'>{selectedExt?.events.length ?? 0}</VSCodeBadge>
-                </div>
+                {/* Extension status Component */}
+                <ExtensionInfoPanel selectedExtension={selectedExt} />
 
                 {/* Table Component */}
                 {this.eventTable.render()}
@@ -238,6 +210,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                     <ReactECharts option={optionCount} />
                     <ReactECharts option={optionSize} />
                 </div>
+                {/* Diagram Components */}
                 <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
                     {
                         this.state.diagramShown &&
@@ -395,7 +368,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             if (typeof value === 'object') {
                 try {
                     stringValue = JSON.stringify(value);
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (_error) {
                     stringValue = String(value);
                 }

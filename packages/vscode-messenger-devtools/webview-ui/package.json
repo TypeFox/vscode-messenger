@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@vscode/webview-ui-toolkit": "^1.0.0",
+    "baukasten-ui": "0.2.5",
     "ag-grid-community": "~31.3.4",
     "ag-grid-react": "~31.3.4",
     "echarts": "^5.3.3",
