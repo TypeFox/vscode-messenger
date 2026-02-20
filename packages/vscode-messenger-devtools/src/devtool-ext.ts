@@ -90,13 +90,13 @@ export function activate(context: vscode.ExtensionContext) {
                         lastExportDirectory = path.dirname(uri.fsPath);
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(params.content, 'utf8'));
                         vscode.window.showInformationMessage(`File exported: ${uri.fsPath}`);
-                        return true;
+                        return 'success';
                     }
-                    return false;
+                    return 'cancelled';
                 } catch (error) {
                     console.error('Error saving file:', error);
                     vscode.window.showErrorMessage(`Failed to save file: ${error}`);
-                    return false;
+                    return 'error';
                 }
             });
 
@@ -158,7 +158,6 @@ function listenToNotifications(messengerExts: Array<vscode.Extension<unknown>>):
 }
 
 function listenToNotification(extension: vscode.Extension<unknown>): void {
-    console.debug(`Extension '${extension.id}' uses vscode-messenger. Extension active: ${extension.isActive}`);
     const publicApi = diagnosticApi(extension);
     if (publicApi && !listeners.has(extension.id)) {
         const eventListener = (event: MessengerEvent) => {

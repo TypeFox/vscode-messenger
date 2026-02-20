@@ -3,7 +3,7 @@ import type { CodiconName, SelectOption } from 'baukasten-ui';
 import { Button, Icon, Select, Tooltip } from 'baukasten-ui';
 
 import type { CSSProperties, MouseEventHandler } from 'react';
-import type { ExtensionData } from '../devtools-view';
+import type { ExtensionData } from '../model/messenger-types';
 
 export function ViewHeader(props: {
     state: { selectedExtension: string | undefined; extensions: ExtensionData[]; },
@@ -14,6 +14,7 @@ export function ViewHeader(props: {
     onToggleDiagram: () => void,
     onExportJSON?: () => void,
     onExportCSV?: () => void,
+    baukastenOnly?: boolean
 }): JSX.Element {
     return (
         <>
@@ -46,7 +47,7 @@ export function ViewHeader(props: {
                 <IconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
                 <IconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
             </div>
-            <div id='header'>
+            {!props.baukastenOnly && <div id='header'>
                 <VSCodeDropdown value={props.state.selectedExtension} title='List of extensions using vscode-messenger.'>
                     {props.state.extensions.map((ext) => (
                         <VSCodeOption key={ext.id} value={ext.id}
@@ -69,6 +70,7 @@ export function ViewHeader(props: {
                 <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
                 <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
             </div>
+            }
         </>
     );
 }
@@ -82,7 +84,7 @@ const buttonStyle = {
 function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
     return (
         <Button variant="ghost" style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
-            <Icon name={props.icon} title={props.title} />
+            <Icon name={props.icon} title={props.title}  />
         </Button>
     );
 }

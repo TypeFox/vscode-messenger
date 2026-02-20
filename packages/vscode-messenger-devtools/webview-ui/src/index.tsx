@@ -1,10 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import DevtoolsComponent from './devtools-view';
+import { MessengerView } from './messenger-view';
 
 ReactDOM.render(
     <React.StrictMode>
+        <MessengerView />
+        {/*
         <DevtoolsComponent />
+          */}
     </React.StrictMode>,
     document.getElementById('root')
 );

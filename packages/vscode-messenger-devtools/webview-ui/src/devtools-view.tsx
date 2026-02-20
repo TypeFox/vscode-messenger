@@ -4,8 +4,6 @@ import '@vscode/codicons/dist/codicon.ttf';
 import 'baukasten-ui/dist/baukasten-base.css';
 import 'baukasten-ui/dist/baukasten-vscode.css';
 import React from 'react';
-import type { ExtensionInfo, MessengerEvent } from 'vscode-messenger';
-import type { NotificationType, RequestType } from 'vscode-messenger-common';
 import { BROADCAST, HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
@@ -15,46 +13,18 @@ import { EventTable } from './components/event-table';
 import { ExtensionInfoPanel } from './components/extension-info';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
-import type { DevtoolsComponentState } from './utilities/view-state';
+import type { DataEvent, ExtendedMessengerEvent, ExtensionData } from './model/messenger-types';
+import { ExtensionListRequest, HOST_EXTENSION_NAME, MESSENGER_EXTENSION_ID, PushDataNotification } from './model/messenger-types';
+import { TableDataExporter } from './utilities/table-data-export';
+import type { DevtoolsComponentState } from './utilities/data-store';
 import { getVSCodeTheme, restoreState, storeState, vsCodeApi } from './utilities/view-state';
-
-type DataEvent = {
-    extension: string;
-    event: MessengerEvent;
-};
-
-const PushDataNotification: NotificationType<DataEvent> = {
-    method: 'pushData'
-};
-
-const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
-    method: 'extensionList'
-};
-
-const SaveFileRequest: RequestType<{ filename: string; content: string; }, boolean> = {
-    method: 'saveFile'
-};
-
-export interface ExtensionData {
-    id: string
-    name: string
-    active: boolean
-    exportsDiagnosticApi: boolean
-    info?: ExtensionInfo
-    events: ExtendedMessengerEvent[]
-}
-export interface ExtendedMessengerEvent extends MessengerEvent {
-    timeAfterRequest?: number
-    payloadInfo?: string
-}
-
-const MESSENGER_EXTENSION_ID = 'TypeFox.vscode-messenger-devtools';
-export const HOST_EXTENSION_NAME = 'host extension';
 
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState> {
 
     messenger: Messenger;
     eventTable: EventTable;
+    dataExporter: TableDataExporter;
+
     private themeObserver: MutationObserver | null = null;
 
     constructor() {
@@ -86,7 +56,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             }
             return;
         }).catch(err => console.error(err));
-
+        this.dataExporter = new TableDataExporter(this.messenger);
         // Set up theme change observer
         this.setupThemeObserver();
     }
@@ -200,7 +170,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 />
 
                 {/* Extension status Component */}
-                <ExtensionInfoPanel selectedExtension={selectedExt} />
+                <ExtensionInfoPanel selectedExtensionProp={selectedExt} />
 
                 {/* Table Component */}
                 {this.eventTable.render()}
@@ -326,83 +296,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     exportTableData(format: 'json' | 'csv'): void {
-        const api = this.eventTable.getGridApi();
-        if (!api) {
-            console.warn('Grid API not available for export');
-            return;
-        }
-
-        const selectedExtension = this.selectedExtensionData();
-        const extensionName = selectedExtension?.id || 'messenger-events';
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `${extensionName}-${timestamp}`;
-
-        try {
-            const dataToExport = api.getSelectedNodes().length > 0 ? api.getSelectedRows() : selectedExtension?.events ?? [];
-            if (format === 'json') {
-                const jsonData = JSON.stringify(dataToExport, null, 2);
-                this.saveFileViaVSCode(`${filename}.json`, jsonData);
-            } else if (format === 'csv') {
-                const csvData = this.toCsv(dataToExport);
-                this.saveFileViaVSCode(`${filename}.csv`, csvData);
-            }
-        } catch (error) {
-            console.error(`Failed to export as ${format}:`, error);
-        }
-    }
-
-    private toCsv(dataToExport: MessengerEvent[]) {
-        if (dataToExport.length === 0) {
-            return '';
-        }
-
-        // Define headers based on MessengerEvent/ExtendedMessengerEvent properties
-        const headers = ['id', 'type', 'sender', 'receiver', 'method', 'error', 'size', 'timestamp', 'parameter', 'timeAfterRequest', 'payloadInfo'];
-
-        const escapeCSVValue = (value: any): string => {
-            if (value === null || value === undefined) {
-                return '';
-            }
-
-            let stringValue: string;
-            if (typeof value === 'object') {
-                try {
-                    stringValue = JSON.stringify(value);
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                } catch (_error) {
-                    stringValue = String(value);
-                }
-            } else {
-                stringValue = String(value);
-            }
-
-            // If value contains comma, newline, or double quote, wrap in quotes and escape internal quotes
-            if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('\r') || stringValue.includes('"')) {
-                return `"${stringValue.replace(/"/g, '""')}"`;
-            }
-
-            return stringValue;
-        };
-
-        const rows = dataToExport.map(event => {
-            const extendedEvent = event as ExtendedMessengerEvent;
-            return headers.map(header =>
-                escapeCSVValue((extendedEvent as any)[header])
-            ).join(',');
-        });
-
-        return [headers.join(','), ...rows].join('\n');
-    }
-
-    private async saveFileViaVSCode(filename: string, content: string): Promise<void> {
-        try {
-            const success = await this.messenger.sendRequest(SaveFileRequest, HOST_EXTENSION, { filename, content });
-            if (!success) {
-                console.error('File save failed');
-            }
-        } catch (error) {
-            console.error('Error saving file via VS Code API:', error);
-        }
+        this.dataExporter.exportTableData(this.eventTable, this.selectedExtensionData()!, format);
     }
 
     gridRowSelected(event: any): void {

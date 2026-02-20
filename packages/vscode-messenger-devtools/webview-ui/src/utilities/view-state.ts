@@ -1,4 +1,4 @@
-import type { ExtensionData } from '../devtools-view';
+import type { DevtoolsComponentState } from './data-store';
 
 export const vsCodeApi = acquireVsCodeApi();
 
@@ -12,7 +12,7 @@ export function storeState(uiState: DevtoolsComponentState): void {
     });
 }
 
-export  function restoreState(): DevtoolsComponentState | undefined {
+export function restoreState(): DevtoolsComponentState | undefined {
     const stored = vsCodeApi.getState() as DevtoolsComponentState;
     if (stored && Array.isArray(stored.datasetSrc)) {
         return {
@@ -30,12 +30,4 @@ export  function restoreState(): DevtoolsComponentState | undefined {
 export function getVSCodeTheme(): 'light' | 'dark' {
     const themeKind = document.body.getAttribute('data-vscode-theme-kind');
     return themeKind?.includes('dark') ? 'dark' : 'light';
-}
-
-export interface DevtoolsComponentState {
-    selectedExtension: string
-    datasetSrc: Map<string, ExtensionData>
-    chartsShown: boolean
-    diagramShown: boolean
-    theme: 'light' | 'dark'
 }

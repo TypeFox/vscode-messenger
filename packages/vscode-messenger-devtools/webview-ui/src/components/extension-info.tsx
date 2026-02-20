@@ -2,13 +2,16 @@ import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
 import type { CodiconName } from 'baukasten-ui';
 import { Badge, Icon, Text } from 'baukasten-ui';
 import React from 'react';
-import type { ExtensionData } from '../devtools-view';
+import type { ExtensionData } from '../model/messenger-types';
+import { useDevtoolsStore } from '../utilities/data-store';
 
 interface ExtensionInfoPanelProps {
-    selectedExtension?: ExtensionData;
+    selectedExtensionProp?: ExtensionData;
+    baukastenOnly?: boolean;
 }
 
-export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selectedExtension }) => {
+export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selectedExtensionProp, baukastenOnly }) => {
+    const selectedExtension = selectedExtensionProp ?? useDevtoolsStore((state) => state.getSelectedExtension());
     const statusData: OptionalInfoBadgeProps = {
         icon: !selectedExtension?.active ? 'warning' : (!selectedExtension?.exportsDiagnosticApi ? 'stop' : 'pass'),
         title:
@@ -44,7 +47,7 @@ export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selected
                 />
                 <InfoBadge label='Events:' value={selectedExtension?.events.length ?? 0} />
             </div>
-            <div id='ext-info'>
+            {!baukastenOnly && <div id='ext-info'>
                 <VscodeInfoBadge label='Status:' {...statusData} />
                 <VscodeInfoBadge label='Views:' {...webviewsData} />
                 <VscodeInfoBadge label='Listeners:'
@@ -58,6 +61,7 @@ export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selected
                 />
                 <VscodeInfoBadge label='Events:' value={selectedExtension?.events.length ?? 0} />
             </div>
+            }
         </>
     );
 };

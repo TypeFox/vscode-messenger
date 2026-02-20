@@ -5,7 +5,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AgGridReact } from 'ag-grid-react';
 import React from 'react';
 import type { MessengerEvent } from 'vscode-messenger';
-import type { ExtendedMessengerEvent } from '../devtools-view';
+import type { ExtendedMessengerEvent } from '../model/messenger-types';
 
 const columnDefs: ColDef[] = [
     {
