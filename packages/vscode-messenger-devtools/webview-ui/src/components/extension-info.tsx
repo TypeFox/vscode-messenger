@@ -78,10 +78,10 @@ function InfoBadge(props: { label: string } & OptionalInfoBadgeProps): JSX.Eleme
     return (<>
         <Text style={marginRight}>{props.label}</Text>
         {props.icon &&
-            <Icon name={props.icon} title={props.title} style={marginRight} />
+            <Icon name={props.icon} size={'lg'} title={props.title} style={marginRight} />
         }
         {props.value !== undefined &&
-            <Badge title={props.title} style={marginRight}>
+            <Badge title={props.title} size={'sm'} style={marginRight}>
                 {props.value ?? '?'}
             </Badge>
         }

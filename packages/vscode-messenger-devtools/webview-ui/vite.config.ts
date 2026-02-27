@@ -3,8 +3,9 @@ import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-    mode: 'development',
+export default defineConfig(({ mode }) => (
+    console.log('Vite mode: ', mode),
+    {
     plugins: [
         react(),
     ],
@@ -25,9 +26,15 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name].js',
                 assetFileNames: 'assets/[name].[ext]',
                 sourcemapBaseUrl: `file://${resolve(__dirname)}/build/assets/`, // <-- resolves tsx sources in debugger
-                sourcemap: true
+                sourcemap: true,
+                manualChunks: {
+                    'vendor-echarts': ['echarts'],
+                    'vendor-ag-grid': ['ag-grid-community', 'ag-grid-react'],
+                    'vendor-graph': ['react-force-graph-2d'],
+                    'vendor-baukasten': ['baukasten-ui'],
+                }
             },
         },
-        minify: 'esbuild'
+        minify: mode === 'production' ? 'esbuild' : false
     },
-});
+}));

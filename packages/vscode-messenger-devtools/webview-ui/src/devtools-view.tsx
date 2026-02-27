@@ -3,12 +3,13 @@ import '@vscode/codicons/dist/codicon.css';
 import '@vscode/codicons/dist/codicon.ttf';
 import 'baukasten-ui/dist/baukasten-base.css';
 import 'baukasten-ui/dist/baukasten-vscode.css';
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BROADCAST, HOST_EXTENSION } from 'vscode-messenger-common';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import type { HighlightData } from './components/diagram';
-import { Diagram, toLinkId, updateLinks } from './components/diagram';
+import { toLinkId, updateLinks } from './components/diagram';
+const Diagram = lazy(() => import('./components/diagram').then(m => ({ default: m.Diagram })));
 import { EventTable } from './components/event-table';
 import { ExtensionInfoPanel } from './components/extension-info';
 import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
@@ -184,11 +185,13 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 <div id='diagram' style={{ display: this.state.diagramShown ? 'flex' : 'none', height: '200px', width: '100%' }} >
                     {
                         this.state.diagramShown &&
-                        <Diagram extensionName={selectedExt?.name ?? ''}
-                            webviews={selectedExt?.info?.webviews ?? []}
-                            outdatedWebviews={collectOutdatedViews(selectedExt)}
-                            doCenter={this.state.diagramShown}
-                        />
+                        <Suspense fallback={<div>Loading...</div>}>
+                            <Diagram extensionName={selectedExt?.name ?? ''}
+                                webviews={selectedExt?.info?.webviews ?? []}
+                                outdatedWebviews={collectOutdatedViews(selectedExt)}
+                                doCenter={this.state.diagramShown}
+                            />
+                        </Suspense>
                     }
                 </div>
             </>

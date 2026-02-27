@@ -1,8 +1,12 @@
-import type { ECharts, EChartsOption, SetOptionOpts } from 'echarts';
-import { getInstanceByDom, init } from 'echarts';
+import type { EChartsOption, SetOptionOpts } from 'echarts';
+import { BarChart } from 'echarts/charts';
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import * as echarts from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef } from 'react';
 import type { MessengerEvent } from 'vscode-messenger';
+echarts.use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 export interface ReactEChartsProps {
     option: EChartsOption;
@@ -116,9 +120,9 @@ export function ReactECharts({
 
     useEffect(() => {
         // Initialize chart
-        let chart: ECharts | undefined;
+        let chart: echarts.ECharts | undefined;
         if (chartRef.current !== null) {
-            chart = init(chartRef.current, theme);
+            chart = echarts.init(chartRef.current, theme);
         }
 
         // Add chart resize listener
@@ -137,9 +141,9 @@ export function ReactECharts({
 
     useEffect(() => {
         // Resize chart when shown
-        let chart: ECharts | undefined;
+        let chart: echarts.ECharts | undefined;
         if (chartRef.current !== null) {
-            chart = init(chartRef.current, theme);
+            chart = echarts.init(chartRef.current, theme);
         }
         chart?.resize();
     }, [option]); // Whenever theme changes we need to add option and setting due to it being deleted in cleanup function
@@ -147,7 +151,7 @@ export function ReactECharts({
     useEffect(() => {
         // Update chart
         if (chartRef.current !== null) {
-            const chart = getInstanceByDom(chartRef.current);
+            const chart = echarts.getInstanceByDom(chartRef.current);
             if (chart)
                 chart.setOption(option, settings);
         }
@@ -156,7 +160,7 @@ export function ReactECharts({
     useEffect(() => {
         // Update chart
         if (chartRef.current !== null) {
-            const chart = getInstanceByDom(chartRef.current);
+            const chart = echarts.getInstanceByDom(chartRef.current);
             if (chart) {
                 if (loading === true)
                     chart.showLoading();

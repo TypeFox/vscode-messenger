@@ -6,7 +6,7 @@
     "start": "vite",
     "clean": "rimraf build",
     "build": "tsc && vite build",
-    "watch": "tsc -w & vite build --watch",
+    "watch": "tsc -w & vite build --watch --mode development",
     "preview": "vite preview",
     "lint": "eslint src"
   },
