@@ -10,7 +10,7 @@ ReactDOM.render(
             <SplitPane.Pane >
                 <MessengerView />
             </SplitPane.Pane>
-            {false &&
+            {true &&
                 <SplitPane.Pane >
                     <DevtoolsComponent />
                 </SplitPane.Pane>
