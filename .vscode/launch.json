@@ -47,6 +47,13 @@
                 "${workspaceFolder}/packages/vscode-messenger-devtools/lib/**/*.js",
                 "${workspaceFolder}/packages/vscode-messenger/lib/**/*.js",
             ],
+            "debugWebviews": true,
+            "rendererDebugOptions": {
+                "webRoot": "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui",
+                "outFiles": [
+                    "${workspaceFolder}/packages/vscode-messenger-devtools/webview-ui/build/**/*.js"
+                ]
+            },
             "preLaunchTask": "Watch All"
         }
     ]

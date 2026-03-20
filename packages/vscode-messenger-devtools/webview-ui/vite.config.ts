@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => (
     assetsInclude: [
         '**/codicon.css',
     ],
+    define: {
+        'process.env.NODE_ENV': JSON.stringify(mode),
+    },
     resolve: {
         // otherwise rollup fails to resolve exported vscode-messenger-webview types
         preserveSymlinks: true
