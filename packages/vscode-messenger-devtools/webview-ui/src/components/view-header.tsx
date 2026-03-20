@@ -137,7 +137,7 @@ const buttonStyle = {
 function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
     return (
         <Button variant="ghost" style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
-            <Icon size={'s'} name={props.icon} title={props.title} />
+            <Icon size={'sm'} name={props.icon} title={props.title} />
         </Button>
     );
 }

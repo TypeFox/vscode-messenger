@@ -13,6 +13,7 @@
   "dependencies": {
     "@vscode/webview-ui-toolkit": "^1.0.0",
     "baukasten-ui": "~0.2.6",
+    "@tanstack/react-table":"~8.21.3",
     "zustand": "^3.7.2",
     "ag-grid-community": "~31.3.4",
     "ag-grid-react": "~31.3.4",

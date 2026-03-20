@@ -1,4 +1,4 @@
-import { SplitPane } from 'baukasten-ui';
+import { Pane, SplitPane } from 'baukasten-ui';
 import 'baukasten-ui/dist/baukasten-base.css';
 import 'baukasten-ui/dist/baukasten-vscode.css';
 import { Messenger } from 'vscode-messenger-webview';
@@ -12,7 +12,6 @@ import { PushDataNotification } from './model/messenger-types';
 import { useDevtoolsStore } from './utilities/data-store';
 import { vsCodeApi } from './utilities/view-state';
 
-//const storedState = restoreState();
 const messenger = new Messenger(vsCodeApi, { debugLog: true });
 messenger.start();
 
@@ -40,7 +39,7 @@ export function MessengerView(): JSX.Element {
     });
 
     return <SplitPane vertical={true} minSize={0} >
-        <SplitPane.Pane>
+        <Pane>
             {/* Header Control Component */}
             <ViewHeader
                 state={{ selectedExtension: undefined, extensions: undefined }}
@@ -58,10 +57,10 @@ export function MessengerView(): JSX.Element {
             {/* Extension status Component */}
             <ExtensionInfoPanel selectedExtensionProp={undefined} baukastenOnly={true} />
             <EventTable />
-        </SplitPane.Pane>
-        <SplitPane.Pane preferredSize={2}>
+        </Pane>
+        <Pane preferredSize={2}>
             <VisualizationComponent />
-        </SplitPane.Pane>
+        </Pane>
     </SplitPane>;
 }
 

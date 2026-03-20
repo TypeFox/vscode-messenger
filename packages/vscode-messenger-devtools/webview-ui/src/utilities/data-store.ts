@@ -1,5 +1,6 @@
 import create from 'zustand';
 import type { ExtendedExtensionData, ExtendedMessengerEvent, ExtensionData } from '../model/messenger-types';
+import { getVSCodeTheme, restoreState, storeState } from './view-state';
 
 export interface DevtoolsComponentState {
   selectedExtension: string
@@ -20,12 +21,14 @@ type Accessors = {
   updateVisualizationSelect: (kind: 'charts' | 'diag') => void
 }
 
+const restoredState = restoreState();
+
 export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set, get) => ({
-  selectedExtension: '',
-  datasetSrc: new Map(),
-  chartsShown: false,
-  diagramShown: false,
-  theme: 'dark',
+  selectedExtension: restoredState?.selectedExtension ?? '',
+  datasetSrc: restoredState?.datasetSrc ?? new Map(),
+  chartsShown: restoredState?.chartsShown ?? false,
+  diagramShown: restoredState?.diagramShown ?? false,
+  theme: restoredState?.theme ?? getVSCodeTheme(),
 
   getSelectedExtension: () => get().datasetSrc.get(get().selectedExtension) ?? undefined,
   getExtensions: () => Array.from(get().datasetSrc.values()),
@@ -72,3 +75,8 @@ export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set,
   },
   updateTheme: (theme: 'light' | 'dark') => set({ theme })
 }));
+
+// Persist store state changes to VS Code webview state
+useDevtoolsStore.subscribe((state) => {
+  storeState(state);
+});
