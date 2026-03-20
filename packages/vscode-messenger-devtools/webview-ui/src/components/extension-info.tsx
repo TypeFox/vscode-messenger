@@ -2,26 +2,32 @@ import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
 import type { CodiconName } from 'baukasten-ui';
 import { Badge, Icon, Text } from 'baukasten-ui';
 import React from 'react';
-import type { ExtensionData } from '../model/messenger-types';
+import type { ExtendedExtensionData } from '../model/messenger-types';
 import { useDevtoolsStore } from '../utilities/data-store';
 
 interface ExtensionInfoPanelProps {
-    selectedExtensionProp?: ExtensionData;
+    selectedExtensionProp?: ExtendedExtensionData;
     baukastenOnly?: boolean;
 }
 
 export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selectedExtensionProp, baukastenOnly }) => {
     const selectedExtension = selectedExtensionProp ?? useDevtoolsStore((state) => state.getSelectedExtension());
-    const statusData: OptionalInfoBadgeProps = {
-        icon: !selectedExtension?.active ? 'warning' : (!selectedExtension?.exportsDiagnosticApi ? 'stop' : 'pass'),
-        title:
-            'Extension '
-            + (!selectedExtension?.active ? 'is not active' :
-                (!selectedExtension?.exportsDiagnosticApi ? "doesn't export diagnostic API"
-                    : 'is active and exports diagnostic API.'))
-    };
+    const statusData: OptionalInfoBadgeProps =
+        (selectedExtension) ?
+            {
+                icon: !selectedExtension?.active ? 'warning' : (!selectedExtension?.exportsDiagnosticApi ? 'stop' : 'pass'),
+                title:
+                    'Extension '
+                    + (!selectedExtension?.active ? 'is not active' :
+                        (!selectedExtension?.exportsDiagnosticApi ? "doesn't export diagnostic API"
+                            : 'is active and exports diagnostic API.'))
+            }
+            : {
+                icon: 'question',
+                title: 'No extension selected'
+            };
     const webviewsData = {
-        value: selectedExtension?.info?.webviews.length ?? 0,
+        value: selectedExtension?.info?.webviews?.length ?? 0,
         title: 'Registered views:\n' + (selectedExtension?.info?.webviews ?? []).map(entry => '  ' + entry.id)
             .join('\n')
     };
@@ -45,7 +51,7 @@ export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selected
                     value={selectedExtension?.info?.pendingRequest ?? 0}
                     title='Number of pending (incoming + outgoing) requests.'
                 />
-                <InfoBadge label='Events:' value={selectedExtension?.events.length ?? 0} />
+                <InfoBadge label='Events:' value={selectedExtension?.events?.length ?? 0} />
             </div>
             {!baukastenOnly && <div id='ext-info'>
                 <VscodeInfoBadge label='Status:' {...statusData} />
@@ -59,7 +65,7 @@ export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selected
                     value={selectedExtension?.info?.pendingRequest ?? 0}
                     title='Number of pending (incoming + outgoing) requests.'
                 />
-                <VscodeInfoBadge label='Events:' value={selectedExtension?.events.length ?? 0} />
+                <VscodeInfoBadge label='Events:' value={selectedExtension?.events?.length ?? 0} />
             </div>
             }
         </>

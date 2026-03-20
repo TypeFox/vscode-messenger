@@ -13,7 +13,7 @@ import { EventTable } from './components/event-table';
 import { ExtensionInfoPanel } from './components/extension-info';
 import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
-import type { DataEvent, ExtendedMessengerEvent, ExtensionData } from './model/messenger-types';
+import type { DataEvent, ExtendedExtensionData, ExtendedMessengerEvent, ExtensionData } from './model/messenger-types';
 import { ExtensionListRequest, HOST_EXTENSION_NAME, MESSENGER_EXTENSION_ID, PushDataNotification } from './model/messenger-types';
 import type { DevtoolsComponentState } from './utilities/data-store';
 import { TableDataExporter } from './utilities/table-data-export';
@@ -136,7 +136,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
                 }
             };
 
-        function collectOutdatedViews(selectedExt: ExtensionData | undefined): string[] {
+        function collectOutdatedViews(selectedExt: ExtendedExtensionData | undefined): string[] {
             if (!selectedExt) return [];
             const unknownViews = new Set<string>();
             const isKnown = (id: string): boolean => {
@@ -201,7 +201,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
 
     private handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent }): void {
         if (!this.state.datasetSrc.has(dataEvent.extension)) {
-            this.updateExtensionData({ id: dataEvent.extension, name: '', active: true, exportsDiagnosticApi: true, events: [] });
+            this.updateExtensionData({ id: dataEvent.extension, name: '', active: true, exportsDiagnosticApi: true });
         }
         const extensionData = this.state.datasetSrc.get(dataEvent.extension)!;
 
@@ -267,7 +267,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         });
     }
 
-    selectedExtensionData(): ExtensionData | undefined {
+    selectedExtensionData(): ExtendedExtensionData | undefined {
         return this.state.datasetSrc.get(this.state.selectedExtension);
     }
 

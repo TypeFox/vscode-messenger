@@ -1,17 +1,17 @@
 import create from 'zustand';
-import type { ExtendedMessengerEvent, ExtensionData } from '../model/messenger-types';
+import type { ExtendedExtensionData, ExtendedMessengerEvent, ExtensionData } from '../model/messenger-types';
 
 export interface DevtoolsComponentState {
   selectedExtension: string
-  datasetSrc: Map<string, ExtensionData>
+  datasetSrc: Map<string, ExtendedExtensionData>
   chartsShown: boolean
   diagramShown: boolean
   theme: 'light' | 'dark'
 }
 
 type Accessors = {
-  getSelectedExtension: () => ExtensionData | undefined
-  getExtensions: () => ExtensionData[]
+  getSelectedExtension: () => ExtendedExtensionData | undefined
+  getExtensions: () => ExtendedExtensionData[]
 
   updateSelectedExtension: (extId: string) => void
   updateExtensionData: (extensionData: ExtensionData[]) => void
@@ -34,13 +34,13 @@ export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set,
     const newDatasetSrc = new Map(get().datasetSrc);
     extensions.forEach(ext => {
       const data = newDatasetSrc;
-      if (!data.has(ext.id)) {
-        // received ExtensionData don't have events
-        data.set(ext.id, { ...ext, events: [] });
+      const existing = data.get(ext.id);
+      if (!existing) {
+        // received new ExtensionData
+        data.set(ext.id, {...ext, events: []});
       } else {
-        const existing = data.get(ext.id);
-        // merge data
-        data.set(ext.id, { ...ext, events: existing?.events ?? [] });
+        // merge extension metadata, but keep existing events
+        data.set(ext.id, { ...ext, events: existing.events });
       }
     });
     set({ datasetSrc: newDatasetSrc });

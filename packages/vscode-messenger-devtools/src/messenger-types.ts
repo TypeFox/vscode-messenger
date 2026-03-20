@@ -21,21 +21,3 @@ export interface ExtensionData {
     exportsDiagnosticApi: boolean
     info?: ExtensionInfo
 }
-
-type SaveFileResult = 'success' | 'cancelled' | 'error';
-
-export const SaveFileRequest: RequestType<{ filename: string; content: string; }, SaveFileResult> = {
-    method: 'saveFile'
-};
-
-export interface ExtendedMessengerEvent extends MessengerEvent {
-    timeAfterRequest?: number
-    payloadInfo?: string
-}
-
-export interface ExtendedExtensionData extends ExtensionData {
-    events: ExtendedMessengerEvent[]
-}
-
-export const MESSENGER_EXTENSION_ID = 'TypeFox.vscode-messenger-devtools';
-export const HOST_EXTENSION_NAME = 'host extension';

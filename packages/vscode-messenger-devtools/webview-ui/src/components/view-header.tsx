@@ -1,12 +1,12 @@
 import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import type { CodiconName, SelectOption } from 'baukasten-ui';
+import type { CodiconName } from 'baukasten-ui';
 import { Button, Icon, Select, Tooltip } from 'baukasten-ui';
 
 import { useEffect, type CSSProperties, type MouseEventHandler } from 'react';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
+import type { Messenger } from 'vscode-messenger-webview';
 import { ExtensionListRequest, MESSENGER_EXTENSION_ID, type ExtensionData } from '../model/messenger-types';
 import { useDevtoolsStore } from '../utilities/data-store';
-import type { Messenger } from 'vscode-messenger-webview';
-import { HOST_EXTENSION } from 'vscode-messenger-common';
 
 export function ViewHeader(props: {
     messenger: Messenger
@@ -22,10 +22,10 @@ export function ViewHeader(props: {
 }): JSX.Element {
 
     const selectedExtensionId: string | undefined = props.state.selectedExtension ?? useDevtoolsStore((state) => state.selectedExtension);;
-    const selectedExtension: ExtensionData | undefined = useDevtoolsStore((state) => state.datasetSrc.get(selectedExtensionId ?? ''));
 
     const loadedExtensions: ExtensionData[] = props.state.extensions ?? useDevtoolsStore((state) => state.getExtensions());
     const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
+    const updateEvents = useDevtoolsStore((state) => state.updateEvents);
     const updateSelectedExtension = useDevtoolsStore((state) => state.updateSelectedExtension);
     const updateVisualization = useDevtoolsStore((state) => state.updateVisualizationSelect);
 
@@ -37,11 +37,11 @@ export function ViewHeader(props: {
                 return;
             }
             updateExtensionData(extensions);
-            if (selectedExtensionId === '' && loadedExtensions.length > 0) {
+            if (selectedExtensionId === '' && extensions.length > 0) {
                 // set first not vscode-messenger entry as selected extension
-                let extensionToPreset = loadedExtensions[0];
-                if (loadedExtensions.length > 1) {
-                    extensionToPreset = loadedExtensions.find(ex => ex.id !== MESSENGER_EXTENSION_ID) ?? extensionToPreset;
+                let extensionToPreset = extensions[0];
+                if (extensions.length > 1) {
+                    extensionToPreset = extensions.find(ex => ex.id !== MESSENGER_EXTENSION_ID) ?? extensionToPreset;
                 }
                 if (extensionToPreset) {
                     updateSelectedExtension(extensionToPreset.id);
@@ -66,7 +66,7 @@ export function ViewHeader(props: {
                                     label: ext.name,
                                     value: ext.id,
                                     description: ext.id
-                                } as SelectOption))
+                                }))
                         }
                     />
                 </Tooltip>
@@ -76,11 +76,8 @@ export function ViewHeader(props: {
                     updateExtensionData(extensions);
                 }} />
                 <IconButton icon='trashcan' title='Clear Data' onClick={() => {
-                    if (!selectedExtension) {
-                        return;
-                    }
-                    selectedExtension.events = [];
-                    // fixme update store data
+                    if (selectedExtensionId)
+                        updateEvents(selectedExtensionId, []);
                 }
                 } />
                 {props.onExportJSON && (
@@ -123,8 +120,8 @@ export function ViewHeader(props: {
                     <VscodeIconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
                 )}
 
-                <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={()=>{}} />
-                <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={()=>{}} />
+                <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={() => { }} />
+                <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={() => { }} />
             </div>
             }
         </>

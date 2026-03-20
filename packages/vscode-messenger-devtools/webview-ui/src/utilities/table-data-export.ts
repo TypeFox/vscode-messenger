@@ -2,7 +2,7 @@ import type { MessengerEvent } from 'vscode-messenger';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import type { Messenger } from 'vscode-messenger-webview';
 import type { EventTable } from '../components/event-table';
-import type { ExtendedMessengerEvent, ExtensionData } from '../model/messenger-types';
+import type { ExtendedExtensionData, ExtendedMessengerEvent } from '../model/messenger-types';
 import { SaveFileRequest } from '../model/messenger-types';
 
 export class TableDataExporter {
@@ -13,7 +13,7 @@ export class TableDataExporter {
         this.messenger = messenger;
     }
 
-    exportTableData(eventTable: EventTable, selectedExtension: ExtensionData, format: 'json' | 'csv'): void {
+    exportTableData(eventTable: EventTable, selectedExtension: ExtendedExtensionData, format: 'json' | 'csv'): void {
         const api = eventTable.getGridApi();
         if (!api) {
             console.warn('Grid API not available for export');

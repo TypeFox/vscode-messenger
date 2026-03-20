@@ -18,10 +18,11 @@ messenger.start();
 
 export function MessengerView(): JSX.Element {
 
+    const updateEvents = useDevtoolsStore((state) => state.updateEvents);
+    const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
+    const loadedExtensions = useDevtoolsStore(state => state.getExtensions());
+
     messenger.onNotification(PushDataNotification, event => {
-        const updateEvents = useDevtoolsStore((state) => state.updateEvents);
-        const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
-        const loadedExtensions = useDevtoolsStore(state => state.getExtensions());
         const extension = loadedExtensions.find(ext => ext.id === event.extension);
         if (extension) {
             const updatedEvents = handleDataPush(event, extension.events);
@@ -30,10 +31,10 @@ export function MessengerView(): JSX.Element {
             // Unknown extension
             updateExtensionData([{
                 id: event.extension, name: '',
-                events: [event.event],
                 active: true,
                 exportsDiagnosticApi: true
             }]);
+            updateEvents(event.extension, [event.event]);
             console.debug('Received data for unknown extension: ', event.extension);
         }
     });
@@ -46,8 +47,8 @@ export function MessengerView(): JSX.Element {
                 onExtensionSelected={(_extId) => { }}
                 onRefreshClicked={async () => { }}
                 onClearClicked={async (_extId: string | undefined) => { }}
-                onToggleDiagram={headerToggleDiagram}
-                onToggleCharts={onToggleCharts}
+                onToggleDiagram={() => { }}
+                onToggleCharts={() => { }}
                 onExportJSON={() => exportTableData('json')}
                 onExportCSV={() => exportTableData('csv')}
                 baukastenOnly={true}
@@ -118,13 +119,5 @@ function handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent; 
 
 function exportTableData(format: 'json' | 'csv') {
     console.error('exportTableData not implemented! ', format);
-}
-
-function onToggleCharts() {
-    console.error('onToggleCharts not implemented!');
-}
-
-function headerToggleDiagram() {
-    console.error('headerToggleDiagram not implemented!');
 }
 

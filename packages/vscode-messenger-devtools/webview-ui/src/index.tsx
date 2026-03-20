@@ -10,9 +10,11 @@ ReactDOM.render(
             <SplitPane.Pane >
                 <MessengerView />
             </SplitPane.Pane>
-            <SplitPane.Pane >
-                <DevtoolsComponent />
-            </SplitPane.Pane>
+            {false &&
+                <SplitPane.Pane >
+                    <DevtoolsComponent />
+                </SplitPane.Pane>
+            }
         </SplitPane>
     </React.StrictMode>,
     document.getElementById('root')

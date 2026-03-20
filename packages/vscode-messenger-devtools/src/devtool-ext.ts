@@ -4,29 +4,17 @@
  * terms of the MIT License, which is available in the project root.
  */
 
-import * as vscode from 'vscode';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import type { ExtensionInfo, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
 import { isMessengerDiagnostic, Messenger } from 'vscode-messenger';
+import type { WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
-import type { NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import { ExtensionListRequest, PushDataNotification } from './messenger-types';
 
 const devtoolsView: WebviewTypeMessageParticipant = {
     type: 'webview',
     webviewType: WEBVIEW_TYPE
-};
-
-type DataEvent = {
-    extension: string;
-    event: MessengerEvent;
-};
-
-const PushDataNotification: NotificationType<DataEvent> = {
-    method: 'pushData'
-};
-
-const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
-    method: 'extensionList'
 };
 
 const msg = new Messenger({ debugLog: false });
@@ -52,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
                         active: ext.isActive,
                         exportsDiagnosticApi: supportedApi,
                         info: supportedApi ? getExtensionInfo(ext) : undefined
-                    } as ExtensionData;
+                    };
                 });
             });
 
@@ -175,12 +163,4 @@ function listenToNotification(extension: vscode.Extension<unknown>): void {
         listeners.delete(extension.id);
     }
 
-}
-interface ExtensionData {
-    id: string
-    name: string
-    active: boolean
-    exportsDiagnosticApi: boolean
-    info?: ExtensionInfo
-    events?: MessengerEvent[]
 }
