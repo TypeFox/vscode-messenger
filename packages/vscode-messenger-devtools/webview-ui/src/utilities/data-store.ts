@@ -16,9 +16,8 @@ type Accessors = {
   updateSelectedExtension: (extId: string) => void
   updateExtensionData: (extensionData: ExtensionData[]) => void
   updateEvents: (extId: string, events: ExtendedMessengerEvent[]) => void
-  updateChartsShown: (chartsShown: boolean) => void
-  updateDiagramShown: (diagramShown: boolean) => void
   updateTheme: (theme: 'light' | 'dark') => void
+  updateVisualizationSelect: (kind: 'charts' | 'diag') => void
 }
 
 export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set, get) => ({
@@ -58,7 +57,18 @@ export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set,
     }
   },
   updateSelectedExtension: (extId: string) => set({ selectedExtension: extId }),
-  updateChartsShown: (chartsShown: boolean) => set({ chartsShown }),
-  updateDiagramShown: (diagramShown: boolean) => set({ diagramShown }),
+  updateVisualizationSelect: (kind: 'charts' | 'diag') => {
+    if (kind === 'charts') {
+      set((state) => ({
+        chartsShown: !state.chartsShown,
+        diagramShown: !state.chartsShown ? false : state.diagramShown
+      }));
+    } else if (kind === 'diag') {
+      set((state) => ({
+        diagramShown: !state.diagramShown,
+        chartsShown: !state.diagramShown ? false : state.chartsShown
+      }));
+    }
+  },
   updateTheme: (theme: 'light' | 'dark') => set({ theme })
 }));

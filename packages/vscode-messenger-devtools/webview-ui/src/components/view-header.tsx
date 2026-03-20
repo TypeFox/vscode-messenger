@@ -2,30 +2,66 @@ import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-t
 import type { CodiconName, SelectOption } from 'baukasten-ui';
 import { Button, Icon, Select, Tooltip } from 'baukasten-ui';
 
-import type { CSSProperties, MouseEventHandler } from 'react';
-import type { ExtensionData } from '../model/messenger-types';
+import { useEffect, type CSSProperties, type MouseEventHandler } from 'react';
+import { ExtensionListRequest, MESSENGER_EXTENSION_ID, type ExtensionData } from '../model/messenger-types';
+import { useDevtoolsStore } from '../utilities/data-store';
+import type { Messenger } from 'vscode-messenger-webview';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
 
 export function ViewHeader(props: {
-    state: { selectedExtension: string | undefined; extensions: ExtensionData[]; },
+    messenger: Messenger
+    state: { selectedExtension: string | undefined; extensions: ExtensionData[] | undefined; },
     onExtensionSelected: (extId: string) => void,
-    onRefreshClicked: MouseEventHandler<HTMLElement> | undefined,
     onClearClicked: (extId: string | undefined) => void,
+    onRefreshClicked: MouseEventHandler<HTMLElement> | undefined,
     onToggleCharts: MouseEventHandler<HTMLElement> | undefined,
     onToggleDiagram: () => void,
     onExportJSON?: () => void,
     onExportCSV?: () => void,
-    baukastenOnly?: boolean
+    baukastenOnly?: boolean,
 }): JSX.Element {
+
+    const selectedExtensionId: string | undefined = props.state.selectedExtension ?? useDevtoolsStore((state) => state.selectedExtension);;
+    const selectedExtension: ExtensionData | undefined = useDevtoolsStore((state) => state.datasetSrc.get(selectedExtensionId ?? ''));
+
+    const loadedExtensions: ExtensionData[] = props.state.extensions ?? useDevtoolsStore((state) => state.getExtensions());
+    const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
+    const updateSelectedExtension = useDevtoolsStore((state) => state.updateSelectedExtension);
+    const updateVisualization = useDevtoolsStore((state) => state.updateVisualizationSelect);
+
+    useEffect(() => {
+        // Initial load of extensions
+        (async () => {
+            const extensions = await props?.messenger?.sendRequest(ExtensionListRequest, HOST_EXTENSION, true);
+            if (!extensions) {
+                return;
+            }
+            updateExtensionData(extensions);
+            if (selectedExtensionId === '' && loadedExtensions.length > 0) {
+                // set first not vscode-messenger entry as selected extension
+                let extensionToPreset = loadedExtensions[0];
+                if (loadedExtensions.length > 1) {
+                    extensionToPreset = loadedExtensions.find(ex => ex.id !== MESSENGER_EXTENSION_ID) ?? extensionToPreset;
+                }
+                if (extensionToPreset) {
+                    updateSelectedExtension(extensionToPreset.id);
+                }
+            }
+        })();
+    }, []);
+
     return (
         <>
             <div id='header'>
                 <Tooltip content="List of extensions using vscode-messenger.">
                     <Select
-                        value={props.state.selectedExtension ?? ''}
+                        value={selectedExtensionId ?? ''}
                         placeholder='List of extensions using vscode-messenger'
-                        onChange={(value) => props.onExtensionSelected(value)}
+                        onChange={(value) => {
+                            updateSelectedExtension(value);
+                        }}
                         options={
-                            props.state.extensions.map((ext) => (
+                            loadedExtensions.map((ext) => (
                                 {
                                     label: ext.name,
                                     value: ext.id,
@@ -35,8 +71,18 @@ export function ViewHeader(props: {
                     />
                 </Tooltip>
 
-                <IconButton icon='refresh' title='Refresh Extension Data' onClick={props.onRefreshClicked} />
-                <IconButton icon='trashcan' title='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)} />
+                <IconButton icon='refresh' title='Refresh Extension Data' onClick={async () => {
+                    const extensions = await props.messenger.sendRequest(ExtensionListRequest, HOST_EXTENSION, true);
+                    updateExtensionData(extensions);
+                }} />
+                <IconButton icon='trashcan' title='Clear Data' onClick={() => {
+                    if (!selectedExtension) {
+                        return;
+                    }
+                    selectedExtension.events = [];
+                    // fixme update store data
+                }
+                } />
                 {props.onExportJSON && (
                     <IconButton icon='file-code' title='Export as JSON' onClick={props.onExportJSON} />
                 )}
@@ -44,12 +90,22 @@ export function ViewHeader(props: {
                     <IconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
                 )}
 
-                <IconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
-                <IconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
+                <IconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={(e) => {
+                    updateVisualization('charts');
+                    if (props.onToggleCharts)
+                        props.onToggleCharts(e);
+
+                }} />
+                <IconButton icon='type-hierarchy' title='Toggle Diagram' onClick={() => {
+                    updateVisualization('diag');
+                    if (props.onToggleDiagram)
+                        props.onToggleDiagram();
+
+                }} />
             </div>
             {!props.baukastenOnly && <div id='header'>
-                <VSCodeDropdown value={props.state.selectedExtension} title='List of extensions using vscode-messenger.'>
-                    {props.state.extensions.map((ext) => (
+                <VSCodeDropdown value={selectedExtensionId} title='List of extensions using vscode-messenger.'>
+                    {loadedExtensions.map((ext) => (
                         <VSCodeOption key={ext.id} value={ext.id}
                             onClick={() => props.onExtensionSelected(ext.id)}>
                             {ext.name}
@@ -58,7 +114,7 @@ export function ViewHeader(props: {
                 </VSCodeDropdown>
 
                 <VscodeIconButton icon='refresh' title='Refresh Extension Data' onClick={props.onRefreshClicked} />
-                <VscodeIconButton icon='trashcan' title='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)} />
+                <VscodeIconButton icon='trashcan' title='Clear Data' onClick={() => props.onClearClicked(selectedExtensionId)} />
 
                 {props.onExportJSON && (
                     <VscodeIconButton icon='file-code' title='Export as JSON' onClick={props.onExportJSON} />
@@ -67,8 +123,8 @@ export function ViewHeader(props: {
                     <VscodeIconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
                 )}
 
-                <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={props.onToggleCharts} />
-                <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={props.onToggleDiagram} />
+                <VscodeIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={()=>{}} />
+                <VscodeIconButton icon='type-hierarchy' title='Toggle Diagram' onClick={()=>{}} />
             </div>
             }
         </>
@@ -83,8 +139,8 @@ const buttonStyle = {
 
 function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
     return (
-        <Button variant="ghost"  style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
-            <Icon size={'s'} name={props.icon} title={props.title}  />
+        <Button variant="ghost" style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
+            <Icon size={'s'} name={props.icon} title={props.title} />
         </Button>
     );
 }

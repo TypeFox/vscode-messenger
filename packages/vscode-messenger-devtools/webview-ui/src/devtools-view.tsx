@@ -9,16 +9,16 @@ import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import type { HighlightData } from './components/diagram';
 import { toLinkId, updateLinks } from './components/diagram';
-const Diagram = lazy(() => import('./components/diagram').then(m => ({ default: m.Diagram })));
 import { EventTable } from './components/event-table';
 import { ExtensionInfoPanel } from './components/extension-info';
-import { ReactECharts, collectChartData, createOptions } from './components/react-echart';
+import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
 import type { DataEvent, ExtendedMessengerEvent, ExtensionData } from './model/messenger-types';
 import { ExtensionListRequest, HOST_EXTENSION_NAME, MESSENGER_EXTENSION_ID, PushDataNotification } from './model/messenger-types';
-import { TableDataExporter } from './utilities/table-data-export';
 import type { DevtoolsComponentState } from './utilities/data-store';
+import { TableDataExporter } from './utilities/table-data-export';
 import { getVSCodeTheme, restoreState, storeState, vsCodeApi } from './utilities/view-state';
+const Diagram = lazy(() => import('./components/diagram').then(m => ({ default: m.Diagram })));
 
 class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsComponentState> {
 
@@ -160,6 +160,7 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             <>
                 {/* Header Control Component */}
                 <ViewHeader
+                    messenger={this.messenger}
                     state={{ selectedExtension: this.state.selectedExtension, extensions: Array.from(this.state.datasetSrc.values()) }}
                     onExtensionSelected={(extId: string) => updateState(extId)}
                     onRefreshClicked={() => this.fillExtensionsList(true)}

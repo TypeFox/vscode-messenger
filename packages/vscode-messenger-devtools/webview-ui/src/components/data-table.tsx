@@ -13,11 +13,13 @@ const columnsDef = [
 ];
 
 export function EventTable() {
-    const selectedEvents = useDevtoolsStore((state) =>
-        state.datasetSrc.get(state.selectedExtension)?.events ?? []
+    const extensionId = useDevtoolsStore((state) => state.selectedExtension);
+    const selectedData = useDevtoolsStore((state) =>
+        state.datasetSrc
     );
+    const events = selectedData.get(extensionId ?? '')?.events ?? [];
     // FIXME DataTable is not updating even with different size of selectedEvents, need to force re-render with key for now
     return (
-        <DataTable key={selectedEvents.length} data={selectedEvents} columns={columnsDef} />
+        <DataTable key={events.length} data={events} aria-label={extensionId + '-events'} columns={columnsDef} />
     );
 }
