@@ -5,8 +5,8 @@ import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import { EventTable } from './components/data-table';
 import { ExtensionInfoPanel } from './components/extension-info';
-import { collectChartData, createOptions, ReactECharts } from './components/react-echart';
 import { ViewHeader } from './components/view-header';
+import { VisualizationComponent } from './components/visualization';
 import type { DataEvent, ExtendedMessengerEvent } from './model/messenger-types';
 import { PushDataNotification } from './model/messenger-types';
 import { useDevtoolsStore } from './utilities/data-store';
@@ -20,7 +20,9 @@ export function MessengerView(): JSX.Element {
     const updateEvents = useDevtoolsStore((state) => state.updateEvents);
     const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
     const loadedExtensions = useDevtoolsStore(state => state.getExtensions());
-
+    const showDiagram = useDevtoolsStore(state => state.diagramShown);
+    const showCharts = useDevtoolsStore(state => state.chartsShown);
+    
     messenger.onNotification(PushDataNotification, event => {
         const extension = loadedExtensions.find(ext => ext.id === event.extension);
         if (extension) {
@@ -58,40 +60,10 @@ export function MessengerView(): JSX.Element {
             <ExtensionInfoPanel selectedExtensionProp={undefined} baukastenOnly={true} />
             <EventTable />
         </Pane>
-        <Pane preferredSize={2}>
+        <Pane preferredSize={(showCharts || showDiagram)? 200 : 2} maxSize={(showCharts || showDiagram)? 100000 : 2} minSize={(showCharts || showDiagram)? 200 : 2} >
             <VisualizationComponent />
         </Pane>
     </SplitPane>;
-}
-
-function VisualizationComponent(): JSX.Element {
-    const showDiagram = useDevtoolsStore(state => state.diagramShown);
-    const showCharts = useDevtoolsStore(state => state.chartsShown);
-    const theme = useDevtoolsStore(state => state.theme);
-
-    const _selectedExtension = useDevtoolsStore(state => state.selectedExtension);
-    const selectedExt = useDevtoolsStore(state => state.datasetSrc.get(_selectedExtension));
-
-    const charSeries = collectChartData(selectedExt?.events ?? []);
-    const optionSize = createOptions(charSeries.series[0], charSeries.senderY, '  (chars)', theme);
-    const optionCount = createOptions(charSeries.series[1], charSeries.senderY, '', theme);
-
-    return (
-        <div id='visualization-placeholder'>
-            {/* Chart Components */}
-            <div id='charts' style={{ display: showCharts ? 'flex' : 'none' }}>
-                <ReactECharts option={optionCount} />
-                <ReactECharts option={optionSize} />
-            </div>
-            {/* Diagram Components */}
-            <div id='diagram' style={{ display: showDiagram ? 'flex' : 'none', height: '200px', width: '100%' }} >
-                {
-                    showDiagram &&
-                    <span>Fancy diagram </span >
-                }
-            </div>
-        </div>
-    );
 }
 
 function handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent; }, extEvents: ExtendedMessengerEvent[]) {
