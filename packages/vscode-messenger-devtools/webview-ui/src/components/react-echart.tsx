@@ -141,11 +141,10 @@ export function ReactECharts({
 
     useEffect(() => {
         // Resize chart when shown
-        let chart: echarts.ECharts | undefined;
         if (chartRef.current !== null) {
-            chart = echarts.init(chartRef.current, theme);
+            const chart = echarts.getInstanceByDom(chartRef.current);
+            chart?.resize();
         }
-        chart?.resize();
     }, [option]); // Whenever theme changes we need to add option and setting due to it being deleted in cleanup function
 
     useEffect(() => {

@@ -22,12 +22,12 @@ export function MessengerView(): JSX.Element {
     const loadedExtensions = useDevtoolsStore(state => state.getExtensions());
     const showDiagram = useDevtoolsStore(state => state.diagramShown);
     const showCharts = useDevtoolsStore(state => state.chartsShown);
-    
+
     messenger.onNotification(PushDataNotification, event => {
         const extension = loadedExtensions.find(ext => ext.id === event.extension);
         if (extension) {
-            const updatedEvents = handleDataPush(event, extension.events);
-            updateEvents(extension.id, updatedEvents);
+            const processedEvent = processDataEvent(event, extension.events);
+            updateEvents(extension.id, [processedEvent, ...extension.events]);
         } else {
             // Unknown extension
             updateExtensionData([{
@@ -35,7 +35,8 @@ export function MessengerView(): JSX.Element {
                 active: true,
                 exportsDiagnosticApi: true
             }]);
-            updateEvents(event.extension, [event.event]);
+            const processedEvent = processDataEvent(event, []);
+            updateEvents(event.extension, [processedEvent]);
             console.debug('Received data for unknown extension: ', event.extension);
         }
     });
@@ -47,7 +48,12 @@ export function MessengerView(): JSX.Element {
                 state={{ selectedExtension: undefined, extensions: undefined }}
                 onExtensionSelected={(_extId) => { }}
                 onRefreshClicked={async () => { }}
-                onClearClicked={async (_extId: string | undefined) => { }}
+                onClearClicked={async (extId: string | undefined) => {
+                    const id = extId ?? useDevtoolsStore.getState().selectedExtension;
+                    if (id) {
+                        updateEvents(id, []);
+                    }
+                }}
                 onToggleDiagram={() => { }}
                 onToggleCharts={() => { }}
                 onExportJSON={() => exportTableData('json')}
@@ -60,21 +66,24 @@ export function MessengerView(): JSX.Element {
             <ExtensionInfoPanel selectedExtensionProp={undefined} baukastenOnly={true} />
             <EventTable />
         </Pane>
-        <Pane preferredSize={(showCharts || showDiagram)? 200 : 2} maxSize={(showCharts || showDiagram)? 100000 : 2} minSize={(showCharts || showDiagram)? 200 : 2} >
+        <Pane preferredSize={(showCharts || showDiagram) ? 200 : 2} maxSize={(showCharts || showDiagram) ? 100000 : 2} minSize={(showCharts || showDiagram) ? 200 : 2} >
             <VisualizationComponent />
         </Pane>
     </SplitPane>;
 }
 
-function handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent; }, extEvents: ExtendedMessengerEvent[]) {
-    //const highlight: HighlightData[] = [];
+/**
+ * Process an incoming data event: compute timing for responses and format payload info.
+ * Assigns a unique row ID via `ensureRowId`.
+ * Returns the processed event (does NOT mutate the events array).
+ */
+function processDataEvent(dataEvent: DataEvent & { event: ExtendedMessengerEvent }, extEvents: ExtendedMessengerEvent[]): ExtendedMessengerEvent {
     const isResponse = dataEvent.event.type === 'response';
     if (isResponse && dataEvent.event.timestamp) {
         // Take max 200 entries to look-up
         const request = extEvents.slice(0, 200).find(event => event.type === 'request' && event.id === dataEvent.event.id);
         if (request && request.timestamp) {
             dataEvent.event.timeAfterRequest = dataEvent.event.timestamp - request.timestamp;
-            //highlight.push({link: toLinkId(dataEvent.event.receiver, dataEvent.event.sender), type: 'request' });
         }
     }
 
@@ -84,8 +93,7 @@ function handleDataPush(dataEvent: DataEvent & { event: ExtendedMessengerEvent; 
         dataEvent.event.payloadInfo = 'Payload information is empty or suppressed using diagnostic API options.';
     }
 
-    extEvents.unshift(dataEvent.event);
-    return extEvents;
+    return dataEvent.event;
 }
 
 function exportTableData(format: 'json' | 'csv') {

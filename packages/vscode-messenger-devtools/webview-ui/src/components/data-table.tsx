@@ -105,6 +105,7 @@ export function EventTable() {
     const extensionId = useDevtoolsStore((state) => state.selectedExtension);
     const selectedData = useDevtoolsStore((state) => state.getSelectedExtension());
     const events = selectedData?.events ?? [];
+
     const tableOptions: Partial<DataTableProps<ExtendedMessengerEvent>> = {
         enableSorting: true,
         enableRowSelection: true,
@@ -115,9 +116,8 @@ export function EventTable() {
         variant: 'zebra',
     };
 
-    // FIXME DataTable is not updating even with different size of selectedEvents, need to force re-render with key for now
     return (
-        <DataTable key={events.length}
+        <DataTable
             data={events}
             columns={columnsDef}
             aria-label={extensionId + '-events'}
