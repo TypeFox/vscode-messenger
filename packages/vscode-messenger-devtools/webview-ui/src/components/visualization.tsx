@@ -1,7 +1,8 @@
+import React from 'react';
 import { useDevtoolsStore } from '../utilities/data-store';
 import { collectChartData, createOptions, ReactECharts } from './react-echart';
 
-export function VisualizationComponent(): JSX.Element {
+export function VisualizationComponent(): React.JSX.Element {
     const showDiagram = useDevtoolsStore(state => state.diagramShown);
     const showCharts = useDevtoolsStore(state => state.chartsShown);
     const theme = useDevtoolsStore(state => state.theme);

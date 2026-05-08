@@ -27,9 +27,10 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     dataExporter: TableDataExporter;
 
     private themeObserver: MutationObserver | null = null;
+    private mounted = false;
 
-    constructor() {
-        super({});
+    constructor(props: Record<string, any>) {
+        super(props);
         const storedState = restoreState();
         this.state = {
             selectedExtension: storedState?.selectedExtension ?? '',
@@ -41,7 +42,14 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
         this.eventTable = new EventTable({ gridRowSelected: (e) => this.gridRowSelected(e) });
         this.messenger = new Messenger(vsCodeApi, { debugLog: true });
         this.messenger.onNotification(PushDataNotification, event => this.handleDataPush(event));
+        this.dataExporter = new TableDataExporter(this.messenger);
+    }
+
+    componentDidMount() {
+        this.mounted = true;
         this.messenger.start();
+        // Set up theme change observer
+        this.setupThemeObserver();
         this.fillExtensionsList(false).then(() => {
             if (this.state.selectedExtension === '' && this.state.datasetSrc.size > 0) {
                 // set first not vscode-messenger entry as selected extension
@@ -57,12 +65,10 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
             }
             return;
         }).catch(err => console.error(err));
-        this.dataExporter = new TableDataExporter(this.messenger);
-        // Set up theme change observer
-        this.setupThemeObserver();
     }
 
     componentWillUnmount() {
+        this.mounted = false;
         // Clean up theme observer
         if (this.themeObserver) {
             this.themeObserver.disconnect();
@@ -257,6 +263,9 @@ class DevtoolsComponent extends React.Component<Record<string, any>, DevtoolsCom
     }
 
     updateState(newState: DevtoolsComponentState, refreshTable: boolean) {
+        if (!this.mounted) {
+            return;
+        }
         this.setState(newState, () => {
             // Callback after `this.state`was updated
             storeState(this.state);

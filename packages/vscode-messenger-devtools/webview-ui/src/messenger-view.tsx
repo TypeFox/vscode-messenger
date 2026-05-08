@@ -1,6 +1,7 @@
 import { Pane, SplitPane } from 'baukasten-ui';
 import 'baukasten-ui/dist/baukasten-base.css';
 import 'baukasten-ui/dist/baukasten-vscode.css';
+import React from 'react';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import { EventTable } from './components/data-table';
@@ -15,7 +16,7 @@ import { vsCodeApi } from './utilities/view-state';
 const messenger = new Messenger(vsCodeApi, { debugLog: true });
 messenger.start();
 
-export function MessengerView(): JSX.Element {
+export function MessengerView(): React.JSX.Element {
 
     const updateEvents = useDevtoolsStore((state) => state.updateEvents);
     const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);

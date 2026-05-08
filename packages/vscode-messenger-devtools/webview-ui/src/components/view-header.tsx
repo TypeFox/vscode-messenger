@@ -2,7 +2,7 @@ import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-t
 import type { CodiconName } from 'baukasten-ui';
 import { Button, Icon, Select, Tooltip } from 'baukasten-ui';
 
-import { useEffect, type CSSProperties, type MouseEventHandler } from 'react';
+import React, { useEffect, type CSSProperties, type MouseEventHandler } from 'react';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import type { Messenger } from 'vscode-messenger-webview';
 import { ExtensionListRequest, MESSENGER_EXTENSION_ID, type ExtensionData } from '../model/messenger-types';
@@ -19,7 +19,7 @@ export function ViewHeader(props: {
     onExportJSON?: () => void,
     onExportCSV?: () => void,
     baukastenOnly?: boolean,
-}): JSX.Element {
+}): React.JSX.Element {
 
     const selectedExtensionId: string | undefined = props.state.selectedExtension ?? useDevtoolsStore((state) => state.selectedExtension);;
 
@@ -134,7 +134,7 @@ const buttonStyle = {
     marginTop: 'auto'
 };
 
-function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
+function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): React.JSX.Element {
     return (
         <Button variant="ghost" style={{ ...buttonStyle, ...props.sx }} onClick={props.onClick} aria-label={props.title}>
             <Icon size={'sm'} name={props.icon} title={props.title} />
@@ -142,7 +142,7 @@ function IconButton(props: { icon: CodiconName, title: string, onClick: MouseEve
     );
 }
 
-function VscodeIconButton(props: { icon: string, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): JSX.Element {
+function VscodeIconButton(props: { icon: string, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): React.JSX.Element {
     return (
         <VSCodeButton appearance='icon' style={{ ...buttonStyle, ...props.sx }} aria-label={props.title} onClick={props.onClick}>
             <span className={'codicon codicon-' + props.icon} title={props.title} />

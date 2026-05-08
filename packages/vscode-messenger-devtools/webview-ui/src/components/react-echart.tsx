@@ -4,7 +4,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { CSSProperties } from 'react';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { MessengerEvent } from 'vscode-messenger';
 echarts.use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
@@ -115,13 +115,14 @@ export function ReactECharts({
     settings,
     loading,
     theme
-}: ReactEChartsProps): JSX.Element {
+}: ReactEChartsProps): React.JSX.Element {
     const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Initialize chart
+        // Initialize chart only when the container has non-zero dimensions
+        // (avoids the "Can't get DOM width or height" warning when hidden)
         let chart: echarts.ECharts | undefined;
-        if (chartRef.current !== null) {
+        if (chartRef.current !== null && chartRef.current.offsetWidth > 0) {
             chart = echarts.init(chartRef.current, theme);
         }
 
@@ -140,9 +141,13 @@ export function ReactECharts({
     }, [theme]);
 
     useEffect(() => {
-        // Resize chart when shown
+        // Resize chart when shown; also lazily initialize if not yet initialized (was hidden on first render)
         if (chartRef.current !== null) {
-            const chart = echarts.getInstanceByDom(chartRef.current);
+            let chart = echarts.getInstanceByDom(chartRef.current);
+            if (!chart && chartRef.current.offsetWidth > 0) {
+                chart = echarts.init(chartRef.current, theme);
+                chart.setOption(option, settings);
+            }
             chart?.resize();
         }
     }, [option]); // Whenever theme changes we need to add option and setting due to it being deleted in cleanup function

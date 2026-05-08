@@ -78,7 +78,7 @@ type OptionalInfoBadgeProps = {
     title?: string;
 };
 
-function InfoBadge(props: { label: string } & OptionalInfoBadgeProps): JSX.Element {
+function InfoBadge(props: { label: string } & OptionalInfoBadgeProps): React.JSX.Element {
     // TODO move back to css file
     const marginRight = { marginRight: '10px' };
     return (<>
@@ -94,7 +94,7 @@ function InfoBadge(props: { label: string } & OptionalInfoBadgeProps): JSX.Eleme
     </>);
 }
 
-function VscodeInfoBadge(props: { label: string, value?: string | number, icon?: string, title?: string }): JSX.Element {
+function VscodeInfoBadge(props: { label: string, value?: string | number, icon?: string, title?: string }): React.JSX.Element {
     // TODO move back to css file
     const marginRight = { marginRight: '10px' };
     return (<>

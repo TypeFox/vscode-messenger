@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { ForceGraphMethods, GraphData, LinkObject, NodeObject } from 'react-force-graph-2d';
 import ForceGraph2D from 'react-force-graph-2d';
 import { HOST_EXTENSION_NAME } from '../model/messenger-types';
@@ -98,7 +98,7 @@ export type HighlightData = { link: string | string[], type: string }
 
 export let updateLinks: (update: HighlightData[]) => void = () => void 0;
 
-export function Diagram(props: DiagramProps): JSX.Element {
+export function Diagram(props: DiagramProps): React.JSX.Element {
 
     const [highlightLinks, setHighlightLinks] = useState(Array<HighlightData>());
     updateLinks = setHighlightLinks;
@@ -111,7 +111,7 @@ export function Diagram(props: DiagramProps): JSX.Element {
             default: return '';
         }
     }
-    const diagramRef = useRef<ForceGraphMethods>();
+    const diagramRef = useRef<ForceGraphMethods>(undefined);
 
     useEffect(() => {
         setTimeout(() => {

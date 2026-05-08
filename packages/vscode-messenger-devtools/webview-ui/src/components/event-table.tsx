@@ -59,14 +59,12 @@ const columnDefs: ColDef[] = [
 /**
  *  Table that shows messages exchanged between the extension and the webviews.
  */
-export class EventTable extends React.Component {
+export class EventTable extends React.Component<{ gridRowSelected: (e: any) => void }> {
 
-    gridRefObj: React.RefObject<AgGridReact<MessengerEvent>>;
-    props: { gridRowSelected: (e: any) => void };
+    gridRefObj: React.RefObject<AgGridReact<MessengerEvent> | null>;
 
     constructor(props: { gridRowSelected: (e: any) => void }) {
-        super({});
-        this.props = props;
+        super(props);
         this.gridRefObj = React.createRef();
     }
 
@@ -105,7 +103,7 @@ export class EventTable extends React.Component {
         return JSON.stringify(rowData, null, 2);
     }
 
-    render(): JSX.Element {
+    render(): React.JSX.Element {
         return (
             <div id='event-table'
                 className={getComputedStyle(document.getElementById('root')!).getPropertyValue('--event-table-class')}>
