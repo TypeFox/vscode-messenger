@@ -1,4 +1,3 @@
-import { VSCodeBadge } from '@vscode/webview-ui-toolkit/react';
 import type { CodiconName } from 'baukasten-ui';
 import { Badge, Icon, Text } from 'baukasten-ui';
 import React from 'react';
@@ -7,10 +6,9 @@ import { useDevtoolsStore } from '../utilities/data-store';
 
 interface ExtensionInfoPanelProps {
     selectedExtensionProp?: ExtendedExtensionData;
-    baukastenOnly?: boolean;
 }
 
-export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selectedExtensionProp, baukastenOnly }) => {
+export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selectedExtensionProp }) => {
     const selectedExtension = selectedExtensionProp ?? useDevtoolsStore((state) => state.getSelectedExtension());
     const statusData: OptionalInfoBadgeProps =
         (selectedExtension) ?
@@ -53,21 +51,6 @@ export const ExtensionInfoPanel: React.FC<ExtensionInfoPanelProps> = ({ selected
                 />
                 <InfoBadge label='Events:' value={selectedExtension?.events?.length ?? 0} />
             </div>
-            {!baukastenOnly && <div id='ext-info'>
-                <VscodeInfoBadge label='Status:' {...statusData} />
-                <VscodeInfoBadge label='Views:' {...webviewsData} />
-                <VscodeInfoBadge label='Listeners:'
-                    value={selectedExtension?.info?.diagnosticListeners ?? 0}
-                    title='Number of registered diagnostic listeners.'
-                />
-                <VscodeInfoBadge label='Handlers:' {...handlersData} />
-                <VscodeInfoBadge label='Pending Req.:'
-                    value={selectedExtension?.info?.pendingRequest ?? 0}
-                    title='Number of pending (incoming + outgoing) requests.'
-                />
-                <VscodeInfoBadge label='Events:' value={selectedExtension?.events?.length ?? 0} />
-            </div>
-            }
         </>
     );
 };
@@ -90,22 +73,6 @@ function InfoBadge(props: { label: string } & OptionalInfoBadgeProps): React.JSX
             <Badge title={props.title} size={'sm'} style={marginRight}>
                 {props.value ?? '?'}
             </Badge>
-        }
-    </>);
-}
-
-function VscodeInfoBadge(props: { label: string, value?: string | number, icon?: string, title?: string }): React.JSX.Element {
-    // TODO move back to css file
-    const marginRight = { marginRight: '10px' };
-    return (<>
-        <span style={marginRight}>{props.label}</span>
-        {props.icon &&
-            <span className={'codicon codicon-' + props.icon} title={props.title} style={marginRight} />
-        }
-        {props.value !== undefined &&
-            <VSCodeBadge title={props.title} style={marginRight}>
-                {props.value ?? '?'}
-            </VSCodeBadge>
         }
     </>);
 }

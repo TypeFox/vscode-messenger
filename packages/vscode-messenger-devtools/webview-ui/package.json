@@ -11,22 +11,16 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@vscode/webview-ui-toolkit": "^1.0.0",
+    "vscode-messenger-webview": "~0.6.0",
     "baukasten-ui": "~0.3.0",
-    "@tanstack/react-table":"~8.21.3",
+    "@tanstack/react-table": "~8.21.3",
     "zustand": "^3.7.2",
-    "ag-grid-community": "~31.3.4",
-    "ag-grid-react": "~31.3.4",
-    "echarts": "^5.3.3",
     "react": "~19.2",
-    "react-dom": "~19.2",
-    "react-force-graph-2d": "~1.24.0",
-    "vscode-messenger-webview": "~0.6.0"
+    "react-dom": "~19.2"
   },
   "devDependencies": {
     "@types/react": "~19.2",
     "@types/react-dom": "~19.2",
-    "@types/vscode-webview": "^1.57.0",
     "@vitejs/plugin-react": "^4.7.0",
     "@vscode/codicons": "0.0.20",
     "vite": "^6.4.1"

@@ -1,4 +1,6 @@
 import { type ColumnDef, DataTable, type DataTableProps, Tooltip } from 'baukasten-ui';
+import type { DataTableRef } from 'baukasten-ui/extra';
+import { forwardRef } from 'react';
 import type { ExtendedMessengerEvent } from '../model/messenger-types';
 import { useDevtoolsStore } from '../utilities/data-store';
 
@@ -68,13 +70,14 @@ const columnsDef: Array<ColumnDef<ExtendedMessengerEvent, unknown>> = [
         cell: ({ row }) => {
             const event = row.original;
             const charsCount = Intl.NumberFormat('en', { notation: 'compact' }).format(event.size);
+            let text = charsCount;
             if (event.type === 'response' && typeof event.timeAfterRequest === 'number') {
                 const tookMs = event.timeAfterRequest % 1000;
                 const tookSec = Math.trunc(event.timeAfterRequest / 1000);
                 const secPart = (tookSec > 0) ? `${tookSec}s ` : '';
-                return `${charsCount} (${secPart}${tookMs}ms)`;
+                text = `${charsCount} (${secPart}${tookMs}ms)`;
             }
-            return charsCount;
+            return <Tooltip content={renderPayloadInfo(row.original.payloadInfo ?? '')} maxWidth='500px'><span>{text}</span></Tooltip>;
         },
     },
     {
@@ -101,27 +104,30 @@ const columnsDef: Array<ColumnDef<ExtendedMessengerEvent, unknown>> = [
     },
 ];
 
-export function EventTable() {
-    const extensionId = useDevtoolsStore((state) => state.selectedExtension);
-    const selectedData = useDevtoolsStore((state) => state.getSelectedExtension());
-    const events = selectedData?.events ?? [];
+export const EventTable = forwardRef<DataTableRef<ExtendedMessengerEvent>>(
+    function EventTable(_, ref) {
+        const extensionId = useDevtoolsStore((state) => state.selectedExtension);
+        const selectedData = useDevtoolsStore((state) => state.getSelectedExtension());
+        const events = selectedData?.events ?? [];
 
-    const tableOptions: Partial<DataTableProps<ExtendedMessengerEvent>> = {
-        enableSorting: true,
-        enableRowSelection: true,
-        enableColumnResizing: true,
-        fillHeight: true,
-        stickyHeader: true,
-        size: 'sm',
-        variant: 'zebra',
-    };
+        const tableOptions: Partial<DataTableProps<ExtendedMessengerEvent>> = {
+            enableSorting: true,
+            enableRowSelection: true,
+            enableColumnResizing: true,
+            fillHeight: true,
+            stickyHeader: true,
+            size: 'sm',
+            variant: 'zebra',
+        };
 
-    return (
-        <DataTable
-            data={events}
-            columns={columnsDef}
-            aria-label={extensionId + '-events'}
-            {...tableOptions}
-        />
-    );
-}
+        return (
+            <DataTable
+                ref={ref}
+                data={events}
+                columns={columnsDef}
+                aria-label={extensionId + '-events'}
+                {...tableOptions}
+            />
+        );
+    }
+);

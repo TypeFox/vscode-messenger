@@ -1,22 +1,29 @@
 import { Pane, SplitPane } from 'baukasten-ui';
+import type { DataTableRef } from 'baukasten-ui/extra';
 import 'baukasten-ui/dist/baukasten-base.css';
 import 'baukasten-ui/dist/baukasten-vscode.css';
-import React from 'react';
+import React, { useRef } from 'react';
 import { Messenger } from 'vscode-messenger-webview';
 import '../css/devtools-view.css';
 import { EventTable } from './components/data-table';
+import type { ExtendedMessengerEvent } from './model/messenger-types';
 import { ExtensionInfoPanel } from './components/extension-info';
 import { ViewHeader } from './components/view-header';
 import { VisualizationComponent } from './components/visualization';
-import type { DataEvent, ExtendedMessengerEvent } from './model/messenger-types';
+import type { DataEvent } from './model/messenger-types';
 import { PushDataNotification } from './model/messenger-types';
 import { useDevtoolsStore } from './utilities/data-store';
 import { vsCodeApi } from './utilities/view-state';
+import { TableDataExporter } from './utilities/table-data-export';
 
 const messenger = new Messenger(vsCodeApi, { debugLog: true });
 messenger.start();
 
+const tableExport = new TableDataExporter(messenger);
+
 export function MessengerView(): React.JSX.Element {
+
+    const tableRef = useRef<DataTableRef<ExtendedMessengerEvent>>(null);
 
     const updateEvents = useDevtoolsStore((state) => state.updateEvents);
     const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
@@ -42,6 +49,13 @@ export function MessengerView(): React.JSX.Element {
         }
     });
 
+    function exportTableData(format: 'json' | 'csv') {
+        const state = useDevtoolsStore.getState();
+        const selectedExtensionData = state.getSelectedExtension();
+        const allEvents = selectedExtensionData?.events ?? [];
+        const selectedEvents = tableRef.current?.getSelectedRows() ?? [];
+        tableExport.exportTableData(allEvents, selectedEvents, state.selectedExtension, format);
+    }
     return <SplitPane vertical={true} minSize={0} >
         <Pane>
             {/* Header Control Component */}
@@ -55,17 +69,15 @@ export function MessengerView(): React.JSX.Element {
                         updateEvents(id, []);
                     }
                 }}
-                onToggleDiagram={() => { }}
                 onToggleCharts={() => { }}
                 onExportJSON={() => exportTableData('json')}
                 onExportCSV={() => exportTableData('csv')}
-                baukastenOnly={true}
                 messenger={messenger}
             />
 
             {/* Extension status Component */}
-            <ExtensionInfoPanel selectedExtensionProp={undefined} baukastenOnly={true} />
-            <EventTable />
+            <ExtensionInfoPanel selectedExtensionProp={undefined} />
+            <EventTable ref={tableRef} />
         </Pane>
         <Pane preferredSize={(showCharts || showDiagram) ? 200 : 2} maxSize={(showCharts || showDiagram) ? 100000 : 2} minSize={(showCharts || showDiagram) ? 200 : 2} >
             <VisualizationComponent />
@@ -96,8 +108,3 @@ function processDataEvent(dataEvent: DataEvent & { event: ExtendedMessengerEvent
 
     return dataEvent.event;
 }
-
-function exportTableData(format: 'json' | 'csv') {
-    console.error('exportTableData not implemented! ', format);
-}
-

@@ -1,8 +1,7 @@
 import type { MessengerEvent } from 'vscode-messenger';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import type { Messenger } from 'vscode-messenger-webview';
-import type { EventTable } from '../components/event-table';
-import type { ExtendedExtensionData, ExtendedMessengerEvent } from '../model/messenger-types';
+import type { ExtendedMessengerEvent } from '../model/messenger-types';
 import { SaveFileRequest } from '../model/messenger-types';
 
 export class TableDataExporter {
@@ -13,19 +12,17 @@ export class TableDataExporter {
         this.messenger = messenger;
     }
 
-    exportTableData(eventTable: EventTable, selectedExtension: ExtendedExtensionData, format: 'json' | 'csv'): void {
-        const api = eventTable.getGridApi();
-        if (!api) {
-            console.warn('Grid API not available for export');
-            return;
-        }
-
-        const extensionName = selectedExtension?.id || 'messenger-events';
+    exportTableData(
+        allEvents: ExtendedMessengerEvent[],
+        selectedEvents: ExtendedMessengerEvent[],
+        extensionId: string,
+        format: 'json' | 'csv'
+    ): void {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `${extensionName}-${timestamp}`;
+        const filename = `${extensionId || 'messenger-events'}-${timestamp}`;
+        const dataToExport = selectedEvents.length > 0 ? selectedEvents : allEvents;
 
         try {
-            const dataToExport = api.getSelectedNodes().length > 0 ? api.getSelectedRows() : selectedExtension?.events ?? [];
             if (format === 'json') {
                 const jsonData = JSON.stringify(dataToExport, null, 2);
                 this.saveFileViaVSCode(`${filename}.json`, jsonData);
@@ -43,7 +40,6 @@ export class TableDataExporter {
             return '';
         }
 
-        // Define headers based on MessengerEvent/ExtendedMessengerEvent properties
         const headers = ['id', 'type', 'sender', 'receiver', 'method', 'error', 'size', 'timestamp', 'parameter', 'timeAfterRequest', 'payloadInfo'];
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +60,6 @@ export class TableDataExporter {
                 stringValue = String(value);
             }
 
-            // If value contains comma, newline, or double quote, wrap in quotes and escape internal quotes
             if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('\r') || stringValue.includes('"')) {
                 return `"${stringValue.replace(/"/g, '""')}"`;
             }

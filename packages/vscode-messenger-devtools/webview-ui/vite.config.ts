@@ -31,9 +31,6 @@ export default defineConfig(({ mode }) => (
                 sourcemapBaseUrl: `file://${resolve(__dirname)}/build/assets/`, // <-- resolves tsx sources in debugger
                 sourcemap: true,
                 manualChunks: {
-                    'vendor-echarts': ['echarts'],
-                    'vendor-ag-grid': ['ag-grid-community', 'ag-grid-react'],
-                    'vendor-graph': ['react-force-graph-2d'],
                     'vendor-baukasten': ['baukasten-ui'],
                 }
             },
