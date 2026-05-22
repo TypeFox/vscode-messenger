@@ -40,7 +40,7 @@ const GROUPED_BAR_HEIGHT = 9;
 const GROUPED_BAR_GAP = 2;
 const GROUPED_OUTER_GAP = 14;
 const TOP_PADDING = 8;
-const BOTTOM_PADDING = 28;
+const BOTTOM_PADDING = 20;
 const LEFT_GUTTER = 140;
 const RIGHT_PADDING = 56;
 const MIN_WIDTH = 280;
@@ -100,7 +100,8 @@ function niceScale(rawMax: number, tickCount = 4): NiceScale {
 
 function truncate(value: string, max: number): string {
     if (value.length <= max) return value;
-    return value.slice(0, max - 1) + '\u2026';
+    const half = Math.floor((max - 1) / 2);
+    return value.slice(0, half) + '\u2026' + value.slice(value.length - (max - 1 - half));
 }
 
 interface TooltipState {
@@ -338,7 +339,6 @@ function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
                 className='messenger-chart__sender-label'
             >
                 {truncate(s.sender, MAX_LABEL_CHARS)}
-                <title>{s.sender}</title>
             </text>
             <rect
                 x={chartLeft}
@@ -367,9 +367,7 @@ function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
                             className='messenger-chart__bar'
                             onMouseMove={e => onHover(s.sender, type, value, e)}
                             onMouseLeave={onLeave}
-                        >
-                            <title>{`${s.sender} · ${type}: ${fullFormatter.format(value)}${unitSuffix ?? ''}`}</title>
-                        </rect>
+                        />
                     );
                 })}
             </g>
@@ -410,7 +408,6 @@ function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
                 className='messenger-chart__sender-label'
             >
                 {truncate(s.sender, MAX_LABEL_CHARS)}
-                <title>{s.sender}</title>
             </text>
             {EVENT_TYPES.map((type, ti) => {
                 const value = s[metric][type];
@@ -438,9 +435,7 @@ function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
                             className='messenger-chart__bar'
                             onMouseMove={e => onHover(s.sender, type, value, e)}
                             onMouseLeave={onLeave}
-                        >
-                            <title>{`${s.sender} · ${type}`}</title>
-                        </rect>
+                        />
                     </g>
                 );
             })}

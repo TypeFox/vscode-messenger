@@ -24,6 +24,7 @@ const tableExport = new TableDataExporter(messenger);
 export function MessengerView(): React.JSX.Element {
 
     const tableRef = useRef<DataTableRef<ExtendedMessengerEvent>>(null);
+    const [vizHeight, setVizHeight] = React.useState(200);
 
     const updateEvents = useDevtoolsStore((state) => state.updateEvents);
     const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
@@ -79,8 +80,8 @@ export function MessengerView(): React.JSX.Element {
             <ExtensionInfoPanel selectedExtensionProp={undefined} />
             <EventTable ref={tableRef} />
         </Pane>
-        <Pane preferredSize={(showCharts || showDiagram) ? 200 : 2} maxSize={(showCharts || showDiagram) ? 100000 : 2} minSize={(showCharts || showDiagram) ? 200 : 2} >
-            <VisualizationComponent />
+        <Pane preferredSize={(showCharts || showDiagram) ? vizHeight : 2} maxSize={(showCharts || showDiagram) ? 100000 : 2} minSize={(showCharts || showDiagram) ? vizHeight : 2} >
+            <VisualizationComponent onNaturalHeightChange={setVizHeight} />
         </Pane>
     </SplitPane>;
 }
