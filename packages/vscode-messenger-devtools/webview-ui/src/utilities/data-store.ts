@@ -1,0 +1,82 @@
+import create from 'zustand';
+import type { ExtendedExtensionData, ExtendedMessengerEvent, ExtensionData } from '../model/messenger-types';
+import { getVSCodeTheme, restoreState, storeState } from './view-state';
+
+export interface DevtoolsComponentState {
+  selectedExtension: string
+  datasetSrc: Map<string, ExtendedExtensionData>
+  chartsShown: boolean
+  diagramShown: boolean
+  theme: 'light' | 'dark'
+}
+
+type Accessors = {
+  getSelectedExtension: () => ExtendedExtensionData | undefined
+  getExtensions: () => ExtendedExtensionData[]
+
+  updateSelectedExtension: (extId: string) => void
+  updateExtensionData: (extensionData: ExtensionData[]) => void
+  updateEvents: (extId: string, events: ExtendedMessengerEvent[]) => void
+  updateTheme: (theme: 'light' | 'dark') => void
+  updateVisualizationSelect: (kind: 'charts' | 'diag') => void
+}
+
+const restoredState = restoreState();
+
+export const useDevtoolsStore = create<DevtoolsComponentState & Accessors>((set, get) => ({
+  selectedExtension: restoredState?.selectedExtension ?? '',
+  datasetSrc: restoredState?.datasetSrc ?? new Map(),
+  chartsShown: restoredState?.chartsShown ?? false,
+  diagramShown: restoredState?.diagramShown ?? false,
+  theme: restoredState?.theme ?? getVSCodeTheme(),
+
+  getSelectedExtension: () => get().datasetSrc.get(get().selectedExtension) ?? undefined,
+  getExtensions: () => Array.from(get().datasetSrc.values()),
+
+  updateExtensionData(extensions) {
+    const newDatasetSrc = new Map(get().datasetSrc);
+    extensions.forEach(ext => {
+      const data = newDatasetSrc;
+      const existing = data.get(ext.id);
+      if (!existing) {
+        // received new ExtensionData
+        data.set(ext.id, {...ext, events: []});
+      } else {
+        // merge extension metadata, but keep existing events
+        data.set(ext.id, { ...ext, events: existing.events });
+      }
+    });
+    set({ datasetSrc: newDatasetSrc });
+  },
+  updateEvents(extId, events) {
+    const datasetSrc = get().datasetSrc;
+    if (datasetSrc.has(extId)) {
+      const extData = datasetSrc.get(extId)!;
+      const newDatasetSrc = new Map(datasetSrc);
+      newDatasetSrc.set(extId, { ...extData, events });
+      set({ datasetSrc: newDatasetSrc });
+    } else {
+      console.warn(`Trying to update events for unknown extension: ${extId}`);
+    }
+  },
+  updateSelectedExtension: (extId: string) => set({ selectedExtension: extId }),
+  updateVisualizationSelect: (kind: 'charts' | 'diag') => {
+    if (kind === 'charts') {
+      set((state) => ({
+        chartsShown: !state.chartsShown,
+        diagramShown: !state.chartsShown ? false : state.diagramShown
+      }));
+    } else if (kind === 'diag') {
+      set((state) => ({
+        diagramShown: !state.diagramShown,
+        chartsShown: !state.diagramShown ? false : state.chartsShown
+      }));
+    }
+  },
+  updateTheme: (theme: 'light' | 'dark') => set({ theme })
+}));
+
+// Persist store state changes to VS Code webview state
+useDevtoolsStore.subscribe((state) => {
+  storeState(state);
+});

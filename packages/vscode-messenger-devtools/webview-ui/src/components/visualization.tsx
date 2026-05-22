@@ -1,0 +1,45 @@
+import React, { useEffect, useRef } from 'react';
+import { useDevtoolsStore } from '../utilities/data-store';
+import { collectSenderStats, MessengerChart } from './messenger-chart';
+
+export interface VisualizationComponentProps {
+    onNaturalHeightChange?: (height: number) => void;
+}
+
+export function VisualizationComponent({ onNaturalHeightChange }: VisualizationComponentProps): React.JSX.Element {
+    const showDiagram = useDevtoolsStore(state => state.diagramShown);
+    const showCharts = useDevtoolsStore(state => state.chartsShown);
+
+    const _selectedExtension = useDevtoolsStore(state => state.selectedExtension);
+    const selectedExt = useDevtoolsStore(state => state.datasetSrc.get(_selectedExtension));
+
+    const stats = collectSenderStats(selectedExt?.events ?? []);
+    const placeholderRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = placeholderRef.current;
+        if (!el || !onNaturalHeightChange) return;
+        const observer = new ResizeObserver(() => {
+            onNaturalHeightChange(el.scrollHeight);
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [onNaturalHeightChange]);
+
+    return (
+        <div id='visualization-placeholder' ref={placeholderRef}>
+            {/* Chart Components */}
+            <div id='charts' style={{ display: showCharts ? 'flex' : 'none' }}>
+                <MessengerChart data={stats} metric='count' title='Message count' />
+                <MessengerChart data={stats} metric='size' title='Payload size' unitSuffix=' chars' />
+            </div>
+            {/* Diagram Components */}
+            <div id='diagram' style={{ display: showDiagram ? 'flex' : 'none', height: '200px', width: '100%' }} >
+                {
+                    showDiagram &&
+                    <span>Fancy diagram </span >
+                }
+            </div>
+        </div>
+    );
+}

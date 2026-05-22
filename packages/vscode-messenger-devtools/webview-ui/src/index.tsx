@@ -1,10 +1,12 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import DevtoolsComponent from './devtools-view';
+import { SplitPane } from 'baukasten-ui';
+import { createRoot } from 'react-dom/client';
+import { MessengerView } from './messenger-view';
 
-ReactDOM.render(
-    <React.StrictMode>
-        <DevtoolsComponent />
-    </React.StrictMode>,
-    document.getElementById('root')
+const root = createRoot(document.getElementById('root')!);
+root.render(
+    <SplitPane vertical={true} minSize={10} >
+        <SplitPane.Pane >
+            <MessengerView />
+        </SplitPane.Pane>
+    </SplitPane>
 );

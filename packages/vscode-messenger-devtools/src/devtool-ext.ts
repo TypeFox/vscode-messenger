@@ -4,29 +4,17 @@
  * terms of the MIT License, which is available in the project root.
  */
 
-import * as vscode from 'vscode';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import type { ExtensionInfo, MessengerDiagnostic, MessengerEvent } from 'vscode-messenger';
 import { isMessengerDiagnostic, Messenger } from 'vscode-messenger';
+import type { WebviewTypeMessageParticipant } from 'vscode-messenger-common';
 import { MessagesPanel, WEBVIEW_TYPE } from './panels/MessagesPanel';
-import type { NotificationType, RequestType, WebviewTypeMessageParticipant } from 'vscode-messenger-common';
+import { ExtensionListRequest, PushDataNotification } from './messenger-types';
 
 const devtoolsView: WebviewTypeMessageParticipant = {
     type: 'webview',
     webviewType: WEBVIEW_TYPE
-};
-
-type DataEvent = {
-    extension: string;
-    event: MessengerEvent;
-};
-
-const PushDataNotification: NotificationType<DataEvent> = {
-    method: 'pushData'
-};
-
-const ExtensionListRequest: RequestType<boolean, ExtensionData[]> = {
-    method: 'extensionList'
 };
 
 const msg = new Messenger({ debugLog: false });
@@ -52,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
                         active: ext.isActive,
                         exportsDiagnosticApi: supportedApi,
                         info: supportedApi ? getExtensionInfo(ext) : undefined
-                    } as ExtensionData;
+                    };
                 });
             });
 
@@ -90,13 +78,13 @@ export function activate(context: vscode.ExtensionContext) {
                         lastExportDirectory = path.dirname(uri.fsPath);
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(params.content, 'utf8'));
                         vscode.window.showInformationMessage(`File exported: ${uri.fsPath}`);
-                        return true;
+                        return 'success';
                     }
-                    return false;
+                    return 'cancelled';
                 } catch (error) {
                     console.error('Error saving file:', error);
                     vscode.window.showErrorMessage(`Failed to save file: ${error}`);
-                    return false;
+                    return 'error';
                 }
             });
 
@@ -158,7 +146,6 @@ function listenToNotifications(messengerExts: Array<vscode.Extension<unknown>>):
 }
 
 function listenToNotification(extension: vscode.Extension<unknown>): void {
-    console.debug(`Extension '${extension.id}' uses vscode-messenger. Extension active: ${extension.isActive}`);
     const publicApi = diagnosticApi(extension);
     if (publicApi && !listeners.has(extension.id)) {
         const eventListener = (event: MessengerEvent) => {
@@ -176,12 +163,4 @@ function listenToNotification(extension: vscode.Extension<unknown>): void {
         listeners.delete(extension.id);
     }
 
-}
-interface ExtensionData {
-    id: string
-    name: string
-    active: boolean
-    exportsDiagnosticApi: boolean
-    info?: ExtensionInfo
-    events?: MessengerEvent[]
 }

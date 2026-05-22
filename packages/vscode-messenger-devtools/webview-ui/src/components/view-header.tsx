@@ -1,52 +1,106 @@
-import { VSCodeButton, VSCodeDropdown, VSCodeOption } from '@vscode/webview-ui-toolkit/react';
-import type { MouseEventHandler } from 'react';
-import type { ExtensionData } from '../devtools-view';
+import type { CodiconName } from 'baukasten-ui';
+import { Select, Tooltip } from 'baukasten-ui';
+
+import { Icon, IconButton } from 'baukasten-ui/core';
+import React, { useEffect, type CSSProperties, type MouseEventHandler } from 'react';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
+import type { Messenger } from 'vscode-messenger-webview';
+import { ExtensionListRequest, MESSENGER_EXTENSION_ID, type ExtensionData } from '../model/messenger-types';
+import { useDevtoolsStore } from '../utilities/data-store';
 
 export function ViewHeader(props: {
-    state: { selectedExtension: string | undefined; extensions: ExtensionData[]; },
+    messenger: Messenger
+    state: { selectedExtension: string | undefined; extensions: ExtensionData[] | undefined; },
     onExtensionSelected: (extId: string) => void,
-    onRefreshClicked: MouseEventHandler<HTMLElement> | undefined,
     onClearClicked: (extId: string | undefined) => void,
+    onRefreshClicked: MouseEventHandler<HTMLElement> | undefined,
     onToggleCharts: MouseEventHandler<HTMLElement> | undefined,
-    onToggleDiagram: () => void,
     onExportJSON?: () => void,
     onExportCSV?: () => void,
-}): JSX.Element {
-    return (
-        <div id='header'>
-            <VSCodeDropdown value={props.state.selectedExtension} title='List of extensions using vscode-messenger.'>
-                {props.state.extensions.map((ext) => (
-                    <VSCodeOption key={ext.id} value={ext.id} onClick={() => props.onExtensionSelected(ext.id)}>
-                        {ext.name}
-                    </VSCodeOption>
-                ))}
-            </VSCodeDropdown>
-            <VSCodeButton className='refresh-button' appearance='icon' aria-label='Refresh Extension Data' onClick={props.onRefreshClicked}>
-                <span className='codicon codicon-refresh' title='Refresh' />
-            </VSCodeButton>
-            <VSCodeButton className='clear-button' appearance='icon' aria-label='Clear Data' onClick={() => props.onClearClicked(props.state.selectedExtension)}>
-                <span className='codicon codicon-trashcan' title='Clear Data' />
-            </VSCodeButton>
-            {props.onExportJSON && (
-                <VSCodeButton className='export-json-button' appearance='icon' aria-label='Export as JSON' onClick={props.onExportJSON}>
-                    <span className='codicon codicon-file-code' title='Export as JSON' />
-                </VSCodeButton>
-            )}
-            {props.onExportCSV && (
-                <VSCodeButton className='export-csv-button' appearance='icon' aria-label='Export as CSV' onClick={props.onExportCSV}>
-                    <span className='codicon codicon-file-text' title='Export as CSV' />
-                </VSCodeButton>
-            )}
-            <VSCodeButton className='toggle-charts-button' appearance='icon' aria-label='Toggle Charts' onClick={props.onToggleCharts}>
-                <span className='codicon codicon-graph' title='Toggle Charts' />
-            </VSCodeButton>
-            <VSCodeButton className='toggle-diagram-button' appearance='icon' aria-label='Toggle Diagram' onClick={
-                () => {
-                    props.onToggleDiagram();
+}): React.JSX.Element {
+
+    const selectedExtensionId: string | undefined = props.state.selectedExtension ?? useDevtoolsStore((state) => state.selectedExtension);;
+
+    const loadedExtensions: ExtensionData[] = props.state.extensions ?? useDevtoolsStore((state) => state.getExtensions());
+    const updateExtensionData = useDevtoolsStore((state) => state.updateExtensionData);
+    const updateEvents = useDevtoolsStore((state) => state.updateEvents);
+    const updateSelectedExtension = useDevtoolsStore((state) => state.updateSelectedExtension);
+    const updateVisualization = useDevtoolsStore((state) => state.updateVisualizationSelect);
+
+    useEffect(() => {
+        // Initial load of extensions
+        (async () => {
+            const extensions = await props?.messenger?.sendRequest(ExtensionListRequest, HOST_EXTENSION, true);
+            if (!extensions) {
+                return;
+            }
+            updateExtensionData(extensions);
+            if (selectedExtensionId === '' && extensions.length > 0) {
+                // set first not vscode-messenger entry as selected extension
+                let extensionToPreset = extensions[0];
+                if (extensions.length > 1) {
+                    extensionToPreset = extensions.find(ex => ex.id !== MESSENGER_EXTENSION_ID) ?? extensionToPreset;
                 }
-            }>
-                <span className='codicon codicon-type-hierarchy' title='Toggle Diagram' />
-            </VSCodeButton>
-        </div>
+                if (extensionToPreset) {
+                    updateSelectedExtension(extensionToPreset.id);
+                }
+            }
+        })();
+    }, []);
+
+    return (
+        <>
+            <div id='header'>
+                <Tooltip content="List of extensions using vscode-messenger.">
+                    <Select
+                        value={selectedExtensionId ?? ''}
+                        placeholder='List of extensions using vscode-messenger'
+                        onChange={(value) => {
+                            updateSelectedExtension(value);
+                        }}
+                        options={
+                            loadedExtensions.map((ext) => (
+                                {
+                                    label: ext.name,
+                                    value: ext.id,
+                                    description: ext.id
+                                }))
+                        }
+                    />
+                </Tooltip>
+
+                <BIconButton icon='refresh' title='Refresh Extension Data' onClick={async () => {
+                    const extensions = await props.messenger.sendRequest(ExtensionListRequest, HOST_EXTENSION, true);
+                    updateExtensionData(extensions);
+                }} />
+                <BIconButton icon='trashcan' title='Clear Data' onClick={() => {
+                    if (selectedExtensionId)
+                        updateEvents(selectedExtensionId, []);
+                }
+                } />
+                {props.onExportJSON && (
+                    <BIconButton icon='file-code' title='Export as JSON' onClick={props.onExportJSON} />
+                )}
+                {props.onExportCSV && (
+                    <BIconButton icon='file-text' title='Export as CSV' onClick={props.onExportCSV} />
+                )}
+
+                <BIconButton icon='graph' title='Toggle Charts' sx={{ marginLeft: 'auto' }} onClick={(e) => {
+                    updateVisualization('charts');
+                    if (props.onToggleCharts)
+                        props.onToggleCharts(e);
+
+                }} />
+            </div>
+        </>
+    );
+}
+
+function BIconButton(props: { icon: CodiconName, title: string, onClick: MouseEventHandler<HTMLElement> | undefined, sx?: CSSProperties }): React.JSX.Element {
+    return (
+        <IconButton onClick={props.onClick} icon={
+            <Icon size={'lg'} name={props.icon} title={props.title} />}
+            style={{ ...props.sx }}
+            variant='ghost' />
     );
 }

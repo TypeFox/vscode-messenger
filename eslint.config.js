@@ -47,9 +47,10 @@ module.exports = {
         "no-multiple-empty-lines": ["error", { "max": 1 }], // two or more empty lines need to be fused to one
         "no-new-wrappers": "error",                       // there is no reason to wrap primitve values
         "no-throw-literal": "error",                      // only throw Error but no objects {}
-        "no-trailing-spaces": "error",                    // trim end of lines
+        "no-trailing-spaces": "off",                    // trim end of lines
         "no-unsafe-finally": "error",                     // safe try/catch/finally behavior
         "no-var": "error",                                // use const and let instead of var
+        "no-constant-binary-expression": "warn",          // warn about expressions like if (a === 1 || 0) which are always true
         "space-before-function-paren": ["error", {        // space in function decl: f() vs async () => {}
             "anonymous": "never",
             "asyncArrow": "always",

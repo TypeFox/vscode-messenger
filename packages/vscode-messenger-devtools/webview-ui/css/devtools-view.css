@@ -34,7 +34,14 @@ html {
 
 body {
   height: 100%;
-  --event-table-class: ag-theme-alpine
+  --event-table-class: ag-theme-alpine;
+
+  /* Shared message-type colors used by the data table rows (rowType_*)
+     and the messenger chart (.messenger-chart__bar). Override these to
+     re-skin the entire devtools UI in one place. */
+  --messenger-color-request: var(--vscode-textLink-foreground);
+  --messenger-color-response: var(--vscode-editorGutter-addedBackground);
+  --messenger-color-notification: var(--vscode-editorMarkerNavigationWarning-background);
 }
 
 body[data-vscode-theme-kind="vscode-dark"] {
@@ -66,6 +73,177 @@ body[data-vscode-theme-kind="vscode-dark"] {
 #charts {
   display: flex;
   flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0 4px 0;
+}
+
+/* MessengerChart component */
+.messenger-chart {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 92%, transparent);
+  border: 1px solid var(--vscode-panel-border, color-mix(in srgb, var(--vscode-foreground) 12%, transparent));
+  border-radius: 8px;
+  padding: 12px 0 4px 0;
+  box-sizing: border-box;
+  z-index: 0;
+}
+
+.messenger-chart:hover {
+  z-index: 1;
+}
+
+.messenger-chart__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+  margin-bottom: 8px;
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+.messenger-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+.messenger-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+}
+
+.messenger-chart__legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.messenger-chart__legend-label {
+  text-transform: capitalize;
+}
+
+.messenger-chart__canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+.messenger-chart__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  cursor: default;
+  user-select: none;
+}
+
+.messenger-chart__gridline {
+  stroke: var(--vscode-charts-lines, color-mix(in srgb, var(--vscode-foreground) 14%, transparent));
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  shape-rendering: crispEdges;
+}
+
+.messenger-chart__tick-label,
+.messenger-chart__sender-label,
+.messenger-chart__value-label {
+  fill: var(--vscode-descriptionForeground, var(--vscode-foreground));
+  font-size: 10.5px;
+  font-family: var(--vscode-font-family);
+}
+
+.messenger-chart__sender-label {
+  fill: var(--vscode-foreground);
+  font-size: 11px;
+}
+
+.messenger-chart__value-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.messenger-chart__track {
+  fill: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+}
+
+.messenger-chart__bar {
+  transition: width 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              x 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 160ms ease;
+  cursor: default;
+}
+
+.messenger-chart__bar:hover {
+  opacity: 0.85;
+}
+
+.messenger-chart__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+  opacity: 0.7;
+}
+
+.messenger-chart__tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-panel-border, transparent));
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  z-index: 100;
+  max-width: 280px;
+}
+
+.messenger-chart__tooltip-sender {
+  font-weight: 600;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messenger-chart__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.messenger-chart__tooltip-type {
+  text-transform: capitalize;
+}
+
+.messenger-chart__tooltip-value {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 #diagram {
@@ -76,31 +254,29 @@ body[data-vscode-theme-kind="vscode-dark"] {
 .refresh-button,
 .export-json-button,
 .export-csv-button,
-.clear-button {
+.trashcan-button {
   margin-left: 4px;
   margin-top: auto;
 }
 
+/* unused */
 .toggle-charts-button {
   margin-left: auto;
   margin-top: auto;
 }
 
-span.info-param-name {
-  margin-right: 10px;
+span.codicon.codicon-pass,
+i.codicon.codicon-pass {
+  color: green;
 }
 
-.ext-info-badge {
-  vertical-align: 'center';
-  margin-right: 10px;
-}
-
-
-span.ext-info-badge.codicon.codicon-warning {
+span.codicon.codicon-warning,
+i.codicon.codicon-warning {
   color: #eba800;
 }
 
-span.ext-info-badge.codicon.codicon-stop {
+span.codicon.codicon-stop,
+i.codicon.codicon-stop {
   color: #ec3f00;
 }
 
@@ -110,25 +286,19 @@ span.table-cell.codicon.codicon-stop {
   padding-left: 10px;
 }
 
-span.ext-info-badge.codicon.codicon-pass {
-  color: green;
-}
 
-/* Table row colors*/
+/* Table row colors - share variables with .messenger-chart bars */
 
 div.rowType_request {
-  color: var(--vscode-textLink-foreground)
-    /* blue */
+  color: var(--messenger-color-request);
 }
 
 div.rowType_response {
-  color: var(--vscode-editorGutter-addedBackground)
-    /* green */
+  color: var(--messenger-color-response);
 }
 
 div.rowType_notification {
-  color: var(--vscode-editorMarkerNavigationWarning-background)
-    /* orange/braun */
+  color: var(--messenger-color-notification);
 }
 
 /* Graph 
