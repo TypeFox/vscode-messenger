@@ -12,13 +12,14 @@
   },
   "dependencies": {
     "vscode-messenger-webview": "~0.6.0",
-    "baukasten-ui": "~0.3.0",
+    "baukasten-ui": "0.3.0-next.027be66",
     "@tanstack/react-table": "~8.21.3",
     "zustand": "^3.7.2",
     "react": "~19.2",
     "react-dom": "~19.2"
   },
   "devDependencies": {
+    "@types/vscode-webview": "^1.57.0",
     "@types/react": "~19.2",
     "@types/react-dom": "~19.2",
     "@vitejs/plugin-react": "^4.7.0",
