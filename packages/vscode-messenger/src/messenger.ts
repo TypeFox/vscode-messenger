@@ -78,15 +78,16 @@ export class Messenger implements MessengerAPI {
             }
 
             // remove all asoociated handlers for the disposed view
-            for (const handlers of this.handlerRegistry.values()) {
-                for (let i = 0; i < handlers.length; i++) {
-                    const sender = handlers[i].sender;
-                    if(sender && isWebviewIdMessageParticipant(sender) && sender.webviewId === viewEntry.id) {
-                        handlers.splice(i, 1);
-                        if(handlers.length === 0) {
-                            this.handlerRegistry.delete(sender.webviewId);
-                        }
-                    }
+            for (const [key, handlers] of this.handlerRegistry.entries()) {
+
+                const newHandlers = handlers.filter(handler => !handler.sender ||
+                    !isWebviewIdMessageParticipant(handler.sender) ||
+                    handler.sender.webviewId !== viewEntry.id);
+
+                if (newHandlers.length === 0 ) {
+                    this.handlerRegistry.delete(key);
+                } else {
+                    this.handlerRegistry.set(key, newHandlers);
                 }
             }
         });

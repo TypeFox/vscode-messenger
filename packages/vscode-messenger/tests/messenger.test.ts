@@ -22,6 +22,7 @@ const simpleRequest: RequestType<string, string> = { method: 'request' };
 function createWebview(viewType: string) {
     const view: any = {
         handlerTimeout: undefined,
+        disposeCallback: undefined,
         viewType,
         webview: {
             onDidReceiveMessage: (callback: (msg: unknown) => void) => {
@@ -51,8 +52,14 @@ function createWebview(viewType: string) {
                 return Promise.resolve(true);
             }
         },
-        onDidDispose: () => {
-            view.messages = [];
+        onDidDispose: (callback: () => void) => {
+            view.disposeCallback = callback;
+            return { dispose: () => undefined };
+        },
+        dispose: () => {
+            if (view.disposeCallback) {
+                view.disposeCallback();
+            }
         },
         visible: true,
         messageCallback: undefined,
@@ -293,6 +300,27 @@ describe('Extension Messenger', () => {
         // Simulate webview request
         await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
         expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', result: 'handled2:test' });
+    });
+
+    test('Remove handlers associated with disposed webview', () => {
+        const messenger = new Messenger();
+        const p1 = messenger.registerWebviewView(view1);
+        const p2 = messenger.registerWebviewView(view2);
+
+        messenger.onNotification(simpleNotification, () => undefined, { sender: p1 });
+        messenger.onNotification(simpleNotification, () => undefined, { sender: p2 });
+        messenger.onNotification(simpleNotification, () => undefined);
+
+        const beforeDispose = (messenger as any).handlerRegistry.get(simpleNotification.method);
+        expect(beforeDispose).toBeDefined();
+        expect(beforeDispose.length).toBe(3);
+
+        view1.dispose();
+
+        const afterDispose = (messenger as any).handlerRegistry.get(simpleNotification.method);
+        expect(afterDispose).toBeDefined();
+        expect(afterDispose.length).toBe(2);
+        expect(afterDispose.every((registration: any) => !registration.sender || registration.sender.webviewId !== p1.webviewId)).toBe(true);
     });
 
     test('Do not handle events for hidden view', async () => {
