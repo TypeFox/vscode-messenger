@@ -97,7 +97,6 @@ export class MessagesPanel {
         const stylesUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'index.css']);
         // The JS file from the React build output
         const scriptUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'index.js']);
-        const codiconsUri = getUri(webview, extensionUri, ['webview-ui', 'build', 'assets', 'codicon.css']);
         // Tip: Install the es6-string-html VS Code extension to enable code highlighting below
         return /*html*/ `
       <!DOCTYPE html>
@@ -106,7 +105,6 @@ export class MessagesPanel {
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link rel="stylesheet" type="text/css" href="${stylesUri}">
-          <link rel="stylesheet" type="text/css" href="${codiconsUri}" />
           <title>Messenger Dev Tools</title>
         </head>
         <body>

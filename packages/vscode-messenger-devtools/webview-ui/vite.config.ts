@@ -9,9 +9,6 @@ export default defineConfig(({ mode }) => (
     plugins: [
         react(),
     ],
-    assetsInclude: [
-        '**/codicon.css',
-    ],
     define: {
         'process.env.NODE_ENV': JSON.stringify(mode),
     },

@@ -23,7 +23,6 @@
     "@types/react": "~19.2",
     "@types/react-dom": "~19.2",
     "@vitejs/plugin-react": "^4.7.0",
-    "@vscode/codicons": "0.0.20",
     "vite": "^6.4.1"
   }
 }
