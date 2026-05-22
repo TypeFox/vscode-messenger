@@ -1,5 +1,10 @@
 # Change Log of `vscode-messenger-devtools`
 
+## v0.7.0 (May 2026)
+
+* **New:** Migrated devtools webview UI to [baukasten-ui](https://github.com/TypeFox/baukasten) React component library for a consistent VSCode look and feel
+* Updated to use vscode-messenger v0.6.1 — remove associated message handler when webview is disposed.
+
 ## v0.6.0 (Jan. 2026)
 
 * **New:** Added data export functionality - export messenger events as JSON or CSV files
