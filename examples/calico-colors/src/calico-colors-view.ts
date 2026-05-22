@@ -14,6 +14,7 @@ export class ColorsViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'calicoColors.colorsView';
 
     private _view?: vscode.WebviewView;
+    private readonly _requestTimestamps: number[] = [];
 
 
     constructor(
@@ -47,8 +48,17 @@ export class ColorsViewProvider implements vscode.WebviewViewProvider {
             vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${params}`));
         }));
 
-        // Additional functionality to demonstrate request handler
+        // Additional functionality to demonstrate request handler (rate limit: max 2 per 4s)
         disposables.push(this.messenger.onRequest(availableColorsType, async (params: string) => {
+            const now = Date.now();
+            // Expire timestamps outside the 4-second sliding window
+            while (this._requestTimestamps.length > 0 && now - this._requestTimestamps[0] > 4000) {
+                this._requestTimestamps.shift();
+            }
+            if (this._requestTimestamps.length > 1) {
+                throw new Error('Simulation error: Too many requests.');
+            }
+            this._requestTimestamps.push(now);
             return ['020202', 'f1eeee', 'a85b20', 'daab70', 'efcb99'];
         }));
         webviewView.onDidDispose(() => disposables.forEach(disposable => disposable.dispose()));

@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { MessengerEvent } from 'vscode-messenger';
 
 export type MessengerEventType = 'request' | 'response' | 'notification';
@@ -7,6 +7,7 @@ export interface MessengerSenderStats {
     sender: string;
     count: Record<MessengerEventType, number>;
     size: Record<MessengerEventType, number>;
+    errorCount: number;
 }
 
 export type ChartLayout = 'stacked' | 'grouped';
@@ -33,6 +34,7 @@ const TYPE_COLORS: Record<MessengerEventType, string> = {
     response: 'var(--messenger-color-response, #6cc063)',
     notification: 'var(--messenger-color-notification, #d18616)'
 };
+const ERROR_COLOR = 'var(--messenger-color-error, #f14c4c)';
 
 const STACKED_BAR_HEIGHT = 22;
 const STACKED_ROW_GAP = 14;
@@ -60,7 +62,8 @@ export function collectSenderStats(events: MessengerEvent[]): MessengerSenderSta
             stats = {
                 sender,
                 count: { request: 0, response: 0, notification: 0 },
-                size: { request: 0, response: 0, notification: 0 }
+                size: { request: 0, response: 0, notification: 0 },
+                errorCount: 0
             };
             map.set(sender, stats);
         }
@@ -73,6 +76,9 @@ export function collectSenderStats(events: MessengerEvent[]): MessengerSenderSta
         const stats = ensure(event.sender ?? 'unknown');
         stats.count[type] += 1;
         stats.size[type] += event.size;
+        if (event.error) {
+            stats.errorCount += 1;
+        }
     }
 
     return Array.from(map.values()).sort((a, b) => a.sender.localeCompare(b.sender));
@@ -108,8 +114,11 @@ interface TooltipState {
     x: number;
     y: number;
     sender: string;
-    type: MessengerEventType;
+    type: MessengerEventType | 'error' | 'summary';
     value: number;
+    stats?: MessengerSenderStats;
+    metric?: ChartMetric;
+    unitSuffix?: string;
 }
 
 export function MessengerChart({
@@ -121,9 +130,30 @@ export function MessengerChart({
     height
 }: MessengerChartProps): React.JSX.Element {
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const tooltipRef = useRef<HTMLDivElement | null>(null);
     const clipBaseId = useId();
     const [width, setWidth] = useState(0);
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+    const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+
+    useLayoutEffect(() => {
+        if (!tooltip || !tooltipRef.current || !containerRef.current) return;
+        const container = containerRef.current.getBoundingClientRect();
+        const tip = tooltipRef.current;
+        const tipHeight = tip.offsetHeight;
+        const tipWidth = tip.offsetWidth;
+        let left = tooltip.x + 12;
+        let top = tooltip.y + 12;
+        // Flip up if overflowing bottom
+        if (top + tipHeight > container.height) {
+            top = tooltip.y - tipHeight - 8;
+        }
+        // Shift left if overflowing right
+        if (left + tipWidth > container.width) {
+            left = tooltip.x - tipWidth - 8;
+        }
+        setTooltipPos({ left, top });
+    }, [tooltip]);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -144,12 +174,16 @@ export function MessengerChart({
         if (senders.length === 0) return 0;
         if (layout === 'stacked') {
             return senders.reduce((acc, s) => {
-                const total = EVENT_TYPES.reduce((sum, t) => sum + s[metric][t], 0);
+                const total = EVENT_TYPES.reduce((sum, t) => sum + s[metric][t], 0)
+                    + (metric === 'count' ? s.errorCount : 0);
                 return Math.max(acc, total);
             }, 0);
         }
         return senders.reduce(
-            (acc, s) => EVENT_TYPES.reduce((sub, t) => Math.max(sub, s[metric][t]), acc),
+            (acc, s) => {
+                const typeMax = EVENT_TYPES.reduce((sub, t) => Math.max(sub, s[metric][t]), acc);
+                return metric === 'count' ? Math.max(typeMax, s.errorCount) : typeMax;
+            },
             0
         );
     }, [senders, metric, layout]);
@@ -161,7 +195,8 @@ export function MessengerChart({
         if (layout === 'stacked') {
             return senders.length * (STACKED_BAR_HEIGHT + STACKED_ROW_GAP) - STACKED_ROW_GAP;
         }
-        const groupHeight = GROUPED_BAR_HEIGHT * 3 + GROUPED_BAR_GAP * 2;
+        const barCount = metric === 'count' ? 4 : 3;
+        const groupHeight = GROUPED_BAR_HEIGHT * barCount + GROUPED_BAR_GAP * (barCount - 1);
         return senders.length * (groupHeight + GROUPED_OUTER_GAP) - GROUPED_OUTER_GAP;
     }, [senders.length, layout]);
 
@@ -177,7 +212,7 @@ export function MessengerChart({
 
     const handleHover = (
         sender: string,
-        type: MessengerEventType,
+        type: MessengerEventType | 'error',
         value: number,
         event: React.MouseEvent
     ): void => {
@@ -189,6 +224,23 @@ export function MessengerChart({
             sender,
             type,
             value
+        });
+    };
+    const handleHoverSummary = (
+        s: MessengerSenderStats,
+        event: React.MouseEvent
+    ): void => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        setTooltip({
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+            sender: s.sender,
+            type: 'summary',
+            value: 0,
+            stats: s,
+            metric,
+            unitSuffix
         });
     };
     const handleLeave = (): void => setTooltip(null);
@@ -209,6 +261,16 @@ export function MessengerChart({
                         </span>
                     </div>
                 ))}
+                {metric === 'count' && (
+                    <div className='messenger-chart__legend-item' key='error' role='listitem'>
+                        <span
+                            className='messenger-chart__legend-swatch'
+                            style={{ background: ERROR_COLOR }}
+                            aria-hidden='true'
+                        />
+                        <span className='messenger-chart__legend-label'>error</span>
+                    </div>
+                )}
             </div>
             <div
                 className='messenger-chart__canvas'
@@ -276,11 +338,14 @@ export function MessengerChart({
                                 ? renderStackedRow({
                                     s, idx, metric, scale, chartLeft, chartWidth, chartRight,
                                     clipId: `${clipBaseId}-row-${idx}`,
-                                    unitSuffix, onHover: handleHover, onLeave: handleLeave
+                                    unitSuffix, onHover: handleHover, onLeave: handleLeave,
+                                    onHoverSummary: handleHoverSummary
                                 })
                                 : renderGroupedRow({
                                     s, idx, metric, scale, chartLeft, chartWidth,
-                                    onHover: handleHover, onLeave: handleLeave
+                                    onHover: handleHover, onLeave: handleLeave,
+                                    onHoverSummary: handleHoverSummary,
+                                    showErrors: metric === 'count'
                                 })
                         ))}
                     </svg>
@@ -288,22 +353,39 @@ export function MessengerChart({
             </div>
             {tooltip && (
                 <div
+                    ref={tooltipRef}
                     className='messenger-chart__tooltip'
-                    style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
+                    style={{ left: tooltipPos.left, top: tooltipPos.top }}
                     role='tooltip'
                 >
                     <div className='messenger-chart__tooltip-sender'>{tooltip.sender}</div>
-                    <div className='messenger-chart__tooltip-row'>
-                        <span
-                            className='messenger-chart__legend-swatch'
-                            style={{ background: TYPE_COLORS[tooltip.type] }}
-                            aria-hidden='true'
-                        />
-                        <span className='messenger-chart__tooltip-type'>{tooltip.type}</span>
-                        <span className='messenger-chart__tooltip-value'>
-                            {fullFormatter.format(tooltip.value)}{unitSuffix ?? ''}
-                        </span>
-                    </div>
+                    {tooltip.type === 'summary' && tooltip.stats
+                        ? ([
+                            ...EVENT_TYPES.map(t => ({ label: t, color: TYPE_COLORS[t], value: tooltip.stats![tooltip.metric!][t] })),
+                            ...(tooltip.metric === 'count' ? [{ label: 'error', color: ERROR_COLOR, value: tooltip.stats!.errorCount }] : [])
+                          ]).map(({ label, color, value }) => (
+                            <div className='messenger-chart__tooltip-row' key={label}>
+                                <span className='messenger-chart__legend-swatch' style={{ background: color }} aria-hidden='true' />
+                                <span className='messenger-chart__tooltip-type'>{label}</span>
+                                <span className='messenger-chart__tooltip-value'>
+                                    {fullFormatter.format(value)}{tooltip.unitSuffix ?? ''}
+                                </span>
+                            </div>
+                        ))
+                        : (
+                            <div className='messenger-chart__tooltip-row'>
+                                <span
+                                    className='messenger-chart__legend-swatch'
+                                    style={{ background: tooltip.type === 'error' ? ERROR_COLOR : TYPE_COLORS[tooltip.type as MessengerEventType] }}
+                                    aria-hidden='true'
+                                />
+                                <span className='messenger-chart__tooltip-type'>{tooltip.type}</span>
+                                <span className='messenger-chart__tooltip-value'>
+                                    {fullFormatter.format(tooltip.value)}{unitSuffix ?? ''}
+                                </span>
+                            </div>
+                        )
+                    }
                 </div>
             )}
         </div>
@@ -320,14 +402,16 @@ interface StackedRowArgs {
     chartRight: number;
     clipId: string;
     unitSuffix?: string;
-    onHover: (sender: string, type: MessengerEventType, value: number, e: React.MouseEvent) => void;
+    onHover: (sender: string, type: MessengerEventType | 'error', value: number, e: React.MouseEvent) => void;
+    onHoverSummary: (s: MessengerSenderStats, e: React.MouseEvent) => void;
     onLeave: () => void;
 }
 
 function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
-    const { s, idx, metric, scale, chartLeft, chartWidth, chartRight, clipId, unitSuffix, onHover, onLeave } = args;
+    const { s, idx, metric, scale, chartLeft, chartWidth, chartRight, clipId, unitSuffix, onHover, onHoverSummary, onLeave } = args;
     const rowY = TOP_PADDING + idx * (STACKED_BAR_HEIGHT + STACKED_ROW_GAP);
-    const total = EVENT_TYPES.reduce((sum, t) => sum + s[metric][t], 0);
+    const total = EVENT_TYPES.reduce((sum, t) => sum + s[metric][t], 0)
+        + (metric === 'count' ? s.errorCount : 0);
     let cursor = chartLeft;
     return (
         <g key={s.sender} className='messenger-chart__row'>
@@ -337,6 +421,9 @@ function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
                 textAnchor='end'
                 dominantBaseline='middle'
                 className='messenger-chart__sender-label'
+                onMouseMove={e => onHoverSummary(s, e)}
+                onMouseLeave={onLeave}
+                style={{ cursor: 'default' }}
             >
                 {truncate(s.sender, MAX_LABEL_CHARS)}
             </text>
@@ -348,6 +435,8 @@ function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
                 rx={6}
                 ry={6}
                 className='messenger-chart__track'
+                onMouseMove={e => onHoverSummary(s, e)}
+                onMouseLeave={onLeave}
             />
             <g clipPath={`url(#${clipId})`}>
                 {EVENT_TYPES.map(type => {
@@ -370,6 +459,24 @@ function renderStackedRow(args: StackedRowArgs): React.JSX.Element {
                         />
                     );
                 })}
+                {metric === 'count' && s.errorCount > 0 && (() => {
+                    const errWidth = scale.max === 0 ? 0 : (s.errorCount / scale.max) * chartWidth;
+                    const x = cursor;
+                    cursor += errWidth;
+                    return (
+                        <rect
+                            key='error'
+                            x={x}
+                            y={rowY}
+                            width={Math.max(0, errWidth)}
+                            height={STACKED_BAR_HEIGHT}
+                            fill={ERROR_COLOR}
+                            className='messenger-chart__bar'
+                            onMouseMove={e => onHover(s.sender, 'error', s.errorCount, e)}
+                            onMouseLeave={onLeave}
+                        />
+                    );
+                })()}
             </g>
             {total > 0 && (
                 <text
@@ -390,13 +497,16 @@ interface GroupedRowArgs {
     scale: NiceScale;
     chartLeft: number;
     chartWidth: number;
-    onHover: (sender: string, type: MessengerEventType, value: number, e: React.MouseEvent) => void;
+    showErrors: boolean;
+    onHover: (sender: string, type: MessengerEventType | 'error', value: number, e: React.MouseEvent) => void;
+    onHoverSummary: (s: MessengerSenderStats, e: React.MouseEvent) => void;
     onLeave: () => void;
 }
 
 function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
-    const { s, idx, metric, scale, chartLeft, chartWidth, onHover, onLeave } = args;
-    const groupHeight = GROUPED_BAR_HEIGHT * 3 + GROUPED_BAR_GAP * 2;
+    const { s, idx, metric, scale, chartLeft, chartWidth, showErrors, onHover, onHoverSummary, onLeave } = args;
+    const barCount = showErrors ? 4 : 3;
+    const groupHeight = GROUPED_BAR_HEIGHT * barCount + GROUPED_BAR_GAP * (barCount - 1);
     const groupY = TOP_PADDING + idx * (groupHeight + GROUPED_OUTER_GAP);
     return (
         <g key={s.sender} className='messenger-chart__row'>
@@ -406,6 +516,9 @@ function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
                 textAnchor='end'
                 dominantBaseline='middle'
                 className='messenger-chart__sender-label'
+                onMouseMove={e => onHoverSummary(s, e)}
+                onMouseLeave={onLeave}
+                style={{ cursor: 'default' }}
             >
                 {truncate(s.sender, MAX_LABEL_CHARS)}
             </text>
@@ -423,6 +536,8 @@ function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
                             rx={3}
                             ry={3}
                             className='messenger-chart__track'
+                            onMouseMove={e => onHoverSummary(s, e)}
+                            onMouseLeave={onLeave}
                         />
                         <rect
                             x={chartLeft}
@@ -439,6 +554,37 @@ function renderGroupedRow(args: GroupedRowArgs): React.JSX.Element {
                     </g>
                 );
             })}
+            {showErrors && (() => {
+                const barY = groupY + 3 * (GROUPED_BAR_HEIGHT + GROUPED_BAR_GAP);
+                const barWidth = scale.max === 0 ? 0 : (s.errorCount / scale.max) * chartWidth;
+                return (
+                    <g key='error'>
+                        <rect
+                            x={chartLeft}
+                            y={barY}
+                            width={chartWidth}
+                            height={GROUPED_BAR_HEIGHT}
+                            rx={3}
+                            ry={3}
+                            className='messenger-chart__track'
+                            onMouseMove={e => onHoverSummary(s, e)}
+                            onMouseLeave={onLeave}
+                        />
+                        <rect
+                            x={chartLeft}
+                            y={barY}
+                            width={Math.max(0, barWidth)}
+                            height={GROUPED_BAR_HEIGHT}
+                            rx={3}
+                            ry={3}
+                            fill={ERROR_COLOR}
+                            className='messenger-chart__bar'
+                            onMouseMove={e => onHover(s.sender, 'error', s.errorCount, e)}
+                            onMouseLeave={onLeave}
+                        />
+                    </g>
+                );
+            })()}
         </g>
     );
 }

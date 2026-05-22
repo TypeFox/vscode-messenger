@@ -103,6 +103,8 @@ function processDataEvent(dataEvent: DataEvent & { event: ExtendedMessengerEvent
 
     if (dataEvent.event.parameter) {
         dataEvent.event.payloadInfo = `${isResponse ? 'Response' : 'Parameter'} (max 500 chars):\n ${JSON.stringify(dataEvent.event.parameter, undefined, '  ').substring(0, 499)}`;
+    } else if (dataEvent.event.error) {
+        dataEvent.event.payloadInfo = `\u26A0 ${dataEvent.event.error}`;
     } else {
         dataEvent.event.payloadInfo = 'Payload information is empty or suppressed using diagnostic API options.';
     }
