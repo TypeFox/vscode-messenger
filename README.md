@@ -6,6 +6,7 @@ RPC messaging library for the VS Code extension platform. Makes the communicatio
 [![CI](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml/badge.svg)](https://github.com/TypeFox/vscode-messenger/actions/workflows/main.yml)
 [![License](https://img.shields.io/github/license/TypeFox/vscode-messenger?color=green)](https://github.com/TypeFox/vscode-messenger/blob/main/LICENSE)
 [![Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github)](https://codespaces.new/TypeFox/vscode-messenger)
+[![Copilot Skill](https://img.shields.io/badge/Copilot-Skill-blue?logo=github)](https://github.com/TypeFox/vscode-messenger/blob/main/.github/skills/vscode-messenger/SKILL.md)
 
 ## Features
 
@@ -155,3 +156,7 @@ See the [devtools README](packages/vscode-messenger-devtools/README.md) for full
 ## More examples
 
 The [calico-colors example](examples/calico-colors) demonstrates a complete extension with a `WebviewView` and a `WebviewPanel` sharing a single `Messenger` instance, typed message definitions in a shared module, broadcast usage, and diagnostic API integration.
+
+## AI Agent skill
+
+This repository includes an [Agent skill](.github/skills/vscode-messenger/SKILL.md) that teaches Agents how to implement and debug messaging with `vscode-messenger`. When the skill is active, the agnet understands the library's patterns — message type definitions, handler registration, `start()` requirements, broadcast opt-in, cancellation, and devtools setup — and can generate correct code without you having to explain the API.
