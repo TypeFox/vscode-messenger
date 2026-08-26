@@ -19,7 +19,6 @@ import {
     isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant
 } from 'vscode-messenger-common';
 import type { VsCodeApi } from './vscode-api';
-import { acquireVsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 

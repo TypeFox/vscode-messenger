@@ -7,7 +7,9 @@
 /**
  * This API is provided by VS Code when the UI is loaded in a webview.
  */
-export declare function acquireVsCodeApi(): VsCodeApi;
+declare global {
+    function acquireVsCodeApi(): VsCodeApi;
+}
 
 export interface VsCodeApi {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
