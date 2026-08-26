@@ -49,11 +49,12 @@
     "lint": "eslint src && npm --prefix ./webview-ui run lint",
     "compile": "node esbuild.config.js",
     "test": "node ./lib/test/runTest.js"
-   },
+  },
   "dependencies": {
     "vscode-messenger": "^0.6"
   },
   "devDependencies": {
+    "@types/node": "^26.0.0",
     "@types/vscode": "^1.70.0",
     "concurrently": "^7.6.0",
     "esbuild": "^0.25.0"

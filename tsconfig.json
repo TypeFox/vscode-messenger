@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "node16",
+    "moduleResolution": "node16",
     "lib": [
       "ES2017"
     ],
@@ -10,6 +10,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true,
+    "removeComments": true,
     "strict": true,
     "strictPropertyInitialization": false,
     "noUnusedLocals": true,
