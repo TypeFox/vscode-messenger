@@ -7,6 +7,7 @@ RPC messaging library for the VS Code extension platform. Makes the communicatio
 [![License](https://img.shields.io/github/license/TypeFox/vscode-messenger?color=green)](https://github.com/TypeFox/vscode-messenger/blob/main/LICENSE)
 [![Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github)](https://codespaces.new/TypeFox/vscode-messenger)
 [![Copilot Skill](https://img.shields.io/badge/Copilot-Skill-blue?logo=github)](https://github.com/TypeFox/vscode-messenger/blob/main/.github/skills/vscode-messenger/SKILL.md)
+[![AGENTS.md](https://img.shields.io/badge/AGENTS.md-guide-blue?logo=github)](https://github.com/TypeFox/vscode-messenger/blob/main/AGENTS.md)
 
 ## Features
 

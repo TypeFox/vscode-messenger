@@ -81,7 +81,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
 - `new Messenger(options?)` — `MessengerOptions`: `ignoreHiddenViews` (default `true`), `uniqueHandlers` (throws if a handler for the same method is registered twice — incompatible with sender-scoped handlers; see that section below), `debugLog`.
 - `registerWebviewView(view, options?)` / `registerWebviewPanel(panel, options?)` — returns a `WebviewIdMessageParticipant` with the assigned `webviewId`. Use this returned participant to address that **specific instance** (vs. the `webviewType` string which addresses **all instances** of that type). The library auto-unregisters on `onDidDispose`.
-- `onRequest(type, handler, { sender? })` / `onNotification(type, handler, { sender? })` — return a `Disposable`. **Extension side:** multiple handlers for the same method stack and all fire (for notifications; for requests, multiple matching handlers is an error — see below). **Webview side:** registering a new handler for the same method **replaces** the previous one (last-write-wins). The optional `sender` (extension side only) filters the handler so it only fires for messages from that participant.
+- `onRequest(type, handler, { sender? })` / `onNotification(type, handler, { sender? })` — return a `Disposable`. **Extension side:** for **notifications**, multiple handlers for the same method stack and all fire. For **requests**, registering more than one handler for the same method is invalid — it causes a runtime error response ("Multiple matching request handlers") when that request arrives; use `sender`-scoped handlers instead if you need per-webview logic for the same method (see below). **Webview side:** registering a new handler for the same method **replaces** the previous one (last-write-wins). The optional `sender` (extension side only) filters the handler so it only fires for messages from that participant.
 - `sendRequest(type, receiver, params?, cancelable?)` — returns `Promise<R>`. Receiver is a `MessageParticipant` (webview by id, webview by type, or — once supported — another extension). Cannot be `BROADCAST` — throws immediately on both sides.
 - `sendNotification(type, receiver, params?)` — fire-and-forget. Receiver may be `BROADCAST`.
 
@@ -190,20 +190,27 @@ const colorsView = messenger.registerWebviewView(view); // { type: 'webview', we
 messenger.sendNotification(ColorModify, colorsView, 'clear');
 ```
 
-If you address by `webviewType` instead and multiple instances of that type are registered, `sendRequest` sends the request to **all** registered instances and uses `Promise.race` — the first response wins, others are discarded. Hidden instances (when `ignoreHiddenViews` is `true`, the default) produce an immediate rejection that participates in the race; if any visible instance responds successfully, its result is returned. If all instances are hidden, the request is rejected. `sendNotification` is sent to all instances of that type (hidden ones are silently skipped when `ignoreHiddenViews` is `true`).
+If you address by `webviewType` instead and multiple instances of that type are registered, `sendRequest` behaves as follows:
+
+1. The request is sent to **all** registered instances of that type.
+2. `Promise.race` is used — the first response wins, others are discarded.
+3. With `ignoreHiddenViews: true` (the default): hidden instances immediately reject, and that rejection participates in the race; if at least one visible instance responds successfully, its result is returned; if all instances are hidden, the request rejects.
+4. To avoid this behavior entirely, address by `webviewId` instead of `webviewType`.
+
+`sendNotification` is sent to all instances of that type (hidden ones are silently skipped when `ignoreHiddenViews` is `true`).
 
 ## Common gotchas
 
 ### Setup prerequisites (must be correct before any message works)
 
-- **Webview drops messages until `start()`** — the webview-side `Messenger` only attaches its `window.addEventListener('message', ...)` inside `start()`. Forgetting to call it makes every incoming message disappear silently. Call `start()` once, synchronously after all `onRequest`/`onNotification` registrations in the same top-level script execution (before any async work), so no incoming messages are missed.
+- **Webview drops messages until `start()`** — the webview-side `Messenger` only attaches its `window.addEventListener('message', ...)` inside `start()`. Forgetting to call it makes every incoming message disappear silently. Call `start()` once, after all `onRequest`/`onNotification` calls in your entry-point script, before any `await` expression or async callback. Do not defer `start()` to a later microtask or event handler.
 - **Hidden views are skipped by default** — `ignoreHiddenViews: true` causes `sendNotification` / `sendRequest` to a non-visible webview to be skipped (notification) or rejected (request). Either ensure the view is visible, set `ignoreHiddenViews: false` in `MessengerOptions`, or enable `retainContextWhenHidden` on the webview itself when constructing it.
 - **Broadcast requires opt-in per view** — a view receives a broadcast notification only if its `ViewOptions.broadcastMethods` contains the method string. Without that, the broadcast looks like it works but the view never sees it.
 - **Extension may send before webview is ready** — if the extension sends a request immediately after `registerWebviewView`, the webview may not yet have called `messenger.start()`. Guard against this by having the webview send an initialization notification to the extension once `start()` is called, and only then begin sending from the extension side.
 
 ### Runtime and targeting pitfalls
 
-- **Webview handlers are last-write-wins** — on the webview side, `onRequest`/`onNotification` for the same method **replace** the previous handler. On the extension side, notification handlers stack and all fire; request handlers also stack but having multiple matching handlers for the same request method results in an error response ("Multiple matching request handlers"). Use `uniqueHandlers: true` to catch accidental duplicate registrations at registration time (throws immediately). If you re-register on the webview during HMR or re-mount, dispose the old `Disposable` first.
+- **Webview handlers are last-write-wins** — on the webview side, `onRequest`/`onNotification` for the same method **replace** the previous handler. On the extension side, notification handlers stack and all fire, but registering more than one **request** handler for the same method is invalid usage: it results in a runtime error response ("Multiple matching request handlers") rather than being silently accepted. Use `uniqueHandlers: true` to catch accidental duplicate registrations at registration time (throws immediately). If you re-register on the webview during HMR or re-mount, dispose the old `Disposable` first.
 - **`webviewType` with multiple instances races requests** — if you really want to broadcast a question and aggregate, you have to do it yourself (iterate instances by id and `Promise.all`). The library only returns the first response.
 - **`extensionId` is reserved for future use** — `ExtensionMessageParticipant.extensionId` is in the type but cross-extension messaging isn't implemented. `sendRequest` to `{ type: 'extension', extensionId }` throws. Use `HOST_EXTENSION` (no `extensionId`) for the host extension.
 - **`webviewId` changes on every register** — the id is generated fresh each time `registerWebviewView` / `registerWebviewPanel` is called. Don't persist it across sessions; capture the returned participant and use it for the lifetime of that view.
