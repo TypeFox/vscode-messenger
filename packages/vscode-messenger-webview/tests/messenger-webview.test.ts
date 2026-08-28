@@ -648,4 +648,39 @@ describe('Webview Messenger', () => {
         const notificationAlreadyUnregisteredResult = messenger.unregisterHandler('stringNotification');
         expect(notificationAlreadyUnregisteredResult).toBe(false);
     });
+
+    test('Registering an onRequest handler for a method already used by onNotification throws', () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+        messenger.onNotification(stringRequest, () => undefined);
+        expect(() => messenger.onRequest(stringRequest, (params: string) => 'handled:' + params))
+            .toThrow("Cannot register a request handler for method 'stringRequest': a notification handler is already registered for the same method. "
+                + 'A method must be used exclusively for requests or for notifications.');
+    });
+
+    test('Registering an onNotification handler for a method already used by onRequest throws', () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+        messenger.onRequest(stringRequest, (params: string) => 'handled:' + params);
+        expect(() => messenger.onNotification(stringRequest, () => undefined))
+            .toThrow("Cannot register a notification handler for method 'stringRequest': a request handler is already registered for the same method. "
+                + 'A method must be used exclusively for requests or for notifications.');
+    });
+
+    test('Registering a second request handler for the same method throws', () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+        messenger.onRequest(stringRequest, (params: string) => 'handled1:' + params);
+        expect(() => messenger.onRequest(stringRequest, (params: string) => 'handled2:' + params))
+            .toThrow("A request handler is already registered for method 'stringRequest'. "
+                + 'Only one request handler is allowed per method; dispose the existing handler first if you need to replace it.');
+    });
+
+    test('Disposing a request handler allows re-registering a new one for the same method', () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+        const disposable = messenger.onRequest(stringRequest, (params: string) => 'handled1:' + params);
+        disposable.dispose();
+        expect(() => messenger.onRequest(stringRequest, (params: string) => 'handled2:' + params)).not.toThrow();
+    });
 });

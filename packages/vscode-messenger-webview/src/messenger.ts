@@ -6,7 +6,7 @@
 
 import type {
     CancellationToken, Disposable,
-    JsonAny, Message, MessageParticipant, MessengerAPI,
+    HandlerRegistration, JsonAny, Message, MessageParticipant, MessengerAPI,
     NotificationHandler, NotificationMessage, NotificationType,
     RequestHandler, RequestMessage, RequestType, ResponseError, ResponseMessage
 } from 'vscode-messenger-common';
@@ -16,13 +16,14 @@ import {
     createCancelRequestMessage,
     isCancelRequestNotification,
     isMessage,
-    isNotificationMessage, isRequestMessage, isResponseMessage, isWebviewIdMessageParticipant
+    isNotificationMessage, isRequestMessage, isResponseMessage,
+    participantToString, wrongHandlerKindMessage
 } from 'vscode-messenger-common';
 import type { VsCodeApi } from './vscode-api';
 
 export class Messenger implements MessengerAPI {
 
-    protected readonly handlerRegistry: Map<string, RequestHandler<unknown, unknown> | NotificationHandler<unknown>> = new Map();
+    protected readonly handlerRegistry: Map<string, HandlerRegistration[]> = new Map();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected readonly requests: Map<string, Deferred<any>> = new Map();
     protected readonly pendingHandlers: Map<string, CancellationTokenImpl> = new Map();
@@ -65,14 +66,12 @@ export class Messenger implements MessengerAPI {
      * // Or use the disposable for automatic cleanup
      * requestDisposable.dispose(); // Clean up when done
      * ```
+     *
+     * @throws {Error} If a request handler is already registered for this method. Only one request handler
+     * is allowed per method; dispose the existing handler first if you need to replace it.
      */
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>): Disposable {
-        this.handlerRegistry.set(type.method, handler as RequestHandler<unknown, unknown>);
-        return {
-            dispose: () => {
-                this.unregisterHandler(type.method);
-            }
-        };
+        return this.registerHandler(type.method, handler as RequestHandler<unknown, unknown>, 'request');
     }
 
     /**
@@ -99,12 +98,44 @@ export class Messenger implements MessengerAPI {
      * // Or use the disposable for automatic cleanup
      * notificationDisposable.dispose(); // Clean up when done
      * ```
+     *
+     * Multiple notification handlers can be registered for the same method; all of them are invoked
+     * for every received notification.
      */
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Disposable {
-        this.handlerRegistry.set(type.method, handler as NotificationHandler<unknown>);
+        return this.registerHandler(type.method, handler as NotificationHandler<unknown>, 'notification');
+    }
+
+    protected registerHandler(
+        method: string,
+        handler: RequestHandler<unknown, unknown> | NotificationHandler<unknown>,
+        kind: 'request' | 'notification'
+    ): Disposable {
+        const handlers = this.handlerRegistry.get(method) ?? [];
+        const existingKind = handlers[0]?.kind;
+        if (existingKind && existingKind !== kind) {
+            throw new Error(`Cannot register a ${kind} handler for method '${method}': a ${existingKind} handler is already registered for the same method. `
+                + 'A method must be used exclusively for requests or for notifications.');
+        }
+        if (kind === 'request' && handlers.length > 0) {
+            throw new Error(`A request handler is already registered for method '${method}'. `
+                + 'Only one request handler is allowed per method; dispose the existing handler first if you need to replace it.');
+        }
+        const registration: HandlerRegistration = { handler, kind };
+        handlers.push(registration);
+        this.handlerRegistry.set(method, handlers);
         return {
             dispose: () => {
-                this.unregisterHandler(type.method);
+                const regs = this.handlerRegistry.get(method);
+                if (regs) {
+                    const index = regs.indexOf(registration);
+                    if (index >= 0) {
+                        regs.splice(index, 1);
+                        if (regs.length === 0) {
+                            this.handlerRegistry.delete(method);
+                        }
+                    }
+                }
             }
         };
     }
@@ -175,9 +206,11 @@ export class Messenger implements MessengerAPI {
                 this.log(`Received cancel notification for missing cancelable. ${msg.params}`, 'warn');
             }
         } else {
-            const handler = this.handlerRegistry.get(msg.method);
-            if (handler) {
-                handler(msg.params, msg.sender!, new CancellationTokenImpl());
+            const regs = this.handlerRegistry.get(msg.method);
+            if (regs && regs[0].kind === 'notification') {
+                await Promise.all(regs.map(reg => reg.handler(msg.params, msg.sender!, new CancellationTokenImpl())));
+            } else if (regs) {
+                this.log(wrongHandlerKindMessage('notification', msg.method, regs[0].kind), 'warn');
             } else if (msg.receiver.type !== 'broadcast') {
                 this.log(`Received notification with unknown method: ${msg.method}`, 'warn');
             }
@@ -186,8 +219,9 @@ export class Messenger implements MessengerAPI {
 
     protected async processRequestMessage(msg: RequestMessage) {
         this.log(`View received Request message: ${msg.method} (id ${msg.id})`);
-        const handler = this.handlerRegistry.get(msg.method);
-        if (handler) {
+        const registration = this.handlerRegistry.get(msg.method)?.[0];
+        if (registration?.kind === 'request') {
+            const handler = registration.handler;
             const cancelable = new CancellationTokenImpl();
             try {
                 this.pendingHandlers.set(msg.id, cancelable);
@@ -213,12 +247,15 @@ export class Messenger implements MessengerAPI {
                 this.pendingHandlers.delete(msg.id);
             }
         } else {
-            this.log(`Received request with unknown method: ${msg.method}`, 'warn');
+            const message = registration
+                ? wrongHandlerKindMessage('request', msg.method, registration.kind)
+                : `Unknown method: ${msg.method}`;
+            this.log(message, 'warn');
             const response: ResponseMessage = {
                 id: msg.id,
                 receiver: msg.sender!,
                 error: {
-                    message: `Unknown method: ${msg.method}`
+                    message
                 }
             };
             this.vscode.postMessage(response);
@@ -432,22 +469,4 @@ export function createCancellationToken(signal: AbortSignal): CancellationToken 
             };
         }
     };
-}
-
-function participantToString(participant: MessageParticipant): string {
-    switch (participant.type) {
-        case 'extension':
-            return 'host extension';
-        case 'webview': {
-            if (isWebviewIdMessageParticipant(participant)) {
-                return participant.webviewId;
-            } else if (participant.webviewType) {
-                return participant.webviewType;
-            } else {
-                return 'unspecified webview';
-            }
-        }
-        case 'broadcast':
-            return 'broadcast';
-    }
 }

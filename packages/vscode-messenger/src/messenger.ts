@@ -6,14 +6,15 @@
 
 import type * as vscode from 'vscode';
 import type {
-    CancellationToken, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
+    CancellationToken, HandlerRegistration, JsonAny, Message, MessageParticipant, MessengerAPI, NotificationHandler,
     NotificationMessage, NotificationType,
     RequestHandler, RequestMessage, RequestType, ResponseError,
     ResponseMessage, WebviewIdMessageParticipant
 } from 'vscode-messenger-common';
-import { CancellationTokenImpl, createCancelRequestMessage, Deferred,
+import {
+    CancellationTokenImpl, createCancelRequestMessage, Deferred,
     equalParticipants, HOST_EXTENSION, isCancelRequestNotification, isMessage, isNotificationMessage, isRequestMessage, isResponseMessage,
-    isWebviewIdMessageParticipant
+    isWebviewIdMessageParticipant, isWebviewTypeMessageParticipant, participantToString, wrongHandlerKindMessage
 } from 'vscode-messenger-common';
 import type { DiagnosticOptions, MessengerDiagnostic, MessengerEvent } from './diagnostic-api';
 
@@ -84,7 +85,7 @@ export class Messenger implements MessengerAPI {
                     !isWebviewIdMessageParticipant(handler.sender) ||
                     handler.sender.webviewId !== viewEntry.id);
 
-                if (newHandlers.length === 0 ) {
+                if (newHandlers.length === 0) {
                     this.handlerRegistry.delete(key);
                 } else {
                     this.handlerRegistry.set(key, newHandlers);
@@ -185,6 +186,11 @@ export class Messenger implements MessengerAPI {
             this.log(`Received request with unknown method: ${msg.method}`, 'warn');
             return this.sendErrorResponse(`Unknown method: ${msg.method}`, msg, responseCallback);
         }
+        if (regs[0].kind !== 'request') {
+            const message = wrongHandlerKindMessage('request', msg.method, regs[0].kind);
+            this.log(message, 'warn');
+            return this.sendErrorResponse(message, msg, responseCallback);
+        }
 
         const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
         if (filtered.length === 0) {
@@ -259,6 +265,10 @@ export class Messenger implements MessengerAPI {
         } else {
             const regs = this.handlerRegistry.get(msg.method);
             if (regs) {
+                if (regs[0].kind !== 'notification') {
+                    this.log(wrongHandlerKindMessage('notification', msg.method, regs[0].kind), 'warn');
+                    return;
+                }
                 const filtered = regs.filter(reg => !reg.sender || equalParticipants(reg.sender, msg.sender!));
                 if (filtered.length > 0) {
                     // TODO No need to cancel a notification
@@ -295,6 +305,11 @@ export class Messenger implements MessengerAPI {
      * The handler will be called whenever a request with the specified method is received.
      * The handler should return the response data or throw an error for failed requests.
      *
+     * Only one request handler may be registered per method and overlapping sender scope: registering
+     * a second request handler whose `sender` filter overlaps with an already registered one (e.g. both
+     * omit `sender`, or use the same sender) throws synchronously instead of failing later at dispatch time.
+     * Handlers scoped to distinct, non-overlapping senders can coexist.
+     *
      * @template P The type of the request parameters
      * @template R The type of the response data
      * @param type The request type to handle
@@ -302,9 +317,10 @@ export class Messenger implements MessengerAPI {
      * @param options Additional options for handler registration
      * @param options.sender Optional sender filter - if provided, only requests from this sender will trigger the handler
      * @returns A Disposable that can be used to unregister the handler
+     * @throws {Error} If a request handler with an overlapping sender scope is already registered for this method
      */
     onRequest<P, R>(type: RequestType<P, R>, handler: RequestHandler<P, R>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
-        return this.registerHandler(type, handler, options);
+        return this.registerHandler(type, handler, options, 'request');
     }
 
     /**
@@ -312,6 +328,8 @@ export class Messenger implements MessengerAPI {
      *
      * The handler will be called whenever a notification with the specified method is received.
      * Notification handlers don't return values and should not throw errors for normal operation.
+     * Multiple notification handlers can be registered for the same method (optionally scoped to different
+     * senders); all matching handlers are invoked for every received notification.
      *
      * @template P The type of the notification parameters
      * @param type The notification type to handle
@@ -321,7 +339,7 @@ export class Messenger implements MessengerAPI {
      * @returns A Disposable that can be used to unregister the handler
      */
     onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>, options: { sender?: MessageParticipant } = {}): vscode.Disposable {
-        return this.registerHandler(type, handler, options);
+        return this.registerHandler(type, handler, options, 'notification');
     }
 
     protected registerHandler(
@@ -329,17 +347,33 @@ export class Messenger implements MessengerAPI {
         type: RequestType<any, any> | NotificationType<any>,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: RequestHandler<any, any> | NotificationHandler<any>,
-        options: { sender?: MessageParticipant }
+        options: { sender?: MessageParticipant },
+        kind: 'request' | 'notification'
     ): vscode.Disposable {
         let handlers = this.handlerRegistry.get(type.method);
         if (handlers && this.options.uniqueHandlers) {
-            throw new Error(`A message handler is already registered for method ${type.method}.`);
+            throw new Error(`A message handler is already registered for method '${type.method}'. Registering more than one handler for the same method is not allowed because the 'uniqueHandlers' option is enabled.`);
+        }
+        if (handlers && handlers.length > 0) {
+            const existingKind = handlers[0].kind;
+            if (existingKind !== kind) {
+                throw new Error(`Cannot register a ${kind} handler for method '${type.method}': a ${existingKind} handler is already registered for the same method. `
+                    + 'A method must be used exclusively for requests or for notifications.');
+            }
+        }
+        if (kind === 'request' && handlers) {
+            const conflict = handlers.find(reg => reg.kind === 'request' && sendersOverlap(reg.sender, options.sender));
+            if (conflict) {
+                throw new Error(`A request handler is already registered for method '${type.method}' with an overlapping sender scope `
+                    + `(existing: ${participantToString(conflict.sender)}, new: ${participantToString(options.sender)}). `
+                    + 'Only one request handler is allowed per method and sender scope; dispose the existing handler first or use a non-overlapping sender.');
+            }
         }
         if (!handlers) {
             handlers = [];
             this.handlerRegistry.set(type.method, handlers);
         }
-        const registration: HandlerRegistration = { handler, sender: options.sender };
+        const registration: HandlerRegistration = { handler, sender: options.sender, kind };
         handlers.push(registration);
 
         // Create a disposable that removes the message handler from the registry
@@ -616,9 +650,25 @@ export interface ViewOptions {
     broadcastMethods?: string[]
 }
 
-export interface HandlerRegistration {
-    handler: RequestHandler<unknown, unknown> | NotificationHandler<unknown>
-    sender: MessageParticipant | undefined
+/**
+ * Two sender scopes overlap (i.e. could both match the same concrete sender) if either is unspecified
+ * (matches any sender), or if they are scoped to the same concrete webview (same `webviewId`) or the same
+ * webview type (same `webviewType`). A `webviewId`-scoped filter and a `webviewType`-scoped filter are
+ * treated as non-overlapping here, since it cannot be statically decided whether they refer to the same
+ * webview instance - `equalParticipants` is not suitable for this comparison because it is designed to
+ * match a concrete (always fully populated) sender against a filter, not to compare two filters directly.
+ */
+function sendersOverlap(a: MessageParticipant | undefined, b: MessageParticipant | undefined): boolean {
+    if (!a || !b) {
+        return true;
+    }
+    if (isWebviewIdMessageParticipant(a) && isWebviewIdMessageParticipant(b)) {
+        return a.webviewId === b.webviewId;
+    }
+    if (isWebviewTypeMessageParticipant(a) && isWebviewTypeMessageParticipant(b)) {
+        return a.webviewType === b.webviewType;
+    }
+    return a.type === b.type && a.type !== 'webview';
 }
 
 class IdProvider {
@@ -631,25 +681,5 @@ class IdProvider {
      */
     getWebviewId(view: ViewContainer): string {
         return view.viewType + '_' + this.counter++;
-    }
-}
-
-function participantToString(participant: MessageParticipant | undefined): string {
-    if (!participant) {
-        return 'undefined';
-    }
-    switch (participant.type) {
-        case 'extension':
-            return 'host extension';
-        case 'webview':
-            if (isWebviewIdMessageParticipant(participant)) {
-                return participant.webviewId;
-            } else if (participant.webviewType) {
-                return participant.webviewType;
-            } else {
-                return 'unspecified webview';
-            }
-        case 'broadcast':
-            return 'broadcast';
     }
 }

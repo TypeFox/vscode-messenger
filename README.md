@@ -95,6 +95,45 @@ messenger.sendNotification(colorSelectType, HOST_EXTENSION, 'a85b20');
 
 > **Note:** `messenger.start()` must be called before any messages can be received. Forgetting it causes all incoming messages to be silently dropped.
 
+## Usage in a React webview
+
+When the webview is a React app (e.g. Vite + React), create the `Messenger` **once** at module scope and register handlers inside a `useEffect` that disposes them on cleanup. This is required for React **StrictMode** (which mounts each component twice in development: `setup → cleanup → setup`) and for HMR, both of which re-run effects.
+
+Registering a handler without disposing the previous one has observable consequences: a second **request** handler for the same method throws (`A request handler is already registered for method ...`), and a second **notification** handler stacks and fires twice. The `useEffect` cleanup keeps registrations balanced.
+
+```tsx
+// messenger.ts — created exactly once per webview
+import { Messenger } from 'vscode-messenger-webview';
+export const messenger = new Messenger();
+
+// App.tsx
+import { useEffect, useState } from 'react';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
+import { messenger } from './messenger';
+import { colorModifyType, availableColorsType } from './shared/message-types';
+
+export function App() {
+    const [colors, setColors] = useState<string[]>([]);
+
+    useEffect(() => {
+        const disposables = [
+            messenger.onNotification(colorModifyType, action => {
+                if (action === 'clear') setColors([]);
+            }),
+            messenger.onRequest(availableColorsType, () => colors),
+        ];
+        messenger.start(); // idempotent — safe after a StrictMode remount
+
+        return () => disposables.forEach(d => d.dispose());
+    }, []);
+
+    return null;
+}
+```
+
+**Do:** one `Messenger` at module scope, register in `useEffect`, dispose in its cleanup.
+**Don't:** call `new Messenger()` or `onRequest`/`onNotification` in the component body — those run on every render and will throw on the second request-handler registration.
+
 ## Key concepts
 
 ### Message participants
