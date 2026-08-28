@@ -1,0 +1,56 @@
+name: Publish (next)
+
+# Publishes a "next" snapshot of vscode-messenger-common, vscode-messenger and
+# vscode-messenger-webview to npm under the `next` dist-tag.
+#
+# Manually triggered only. Uses npm trusted publishing (OIDC) + staged publishing:
+# the workflow stages the packages on npm without requiring a token, a maintainer
+# must then explicitly approve (or reject) the staged version with 2FA on
+# npmjs.com before it goes live.
+#
+# The vscode-messenger-devtools extension is not part of this workflow.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # Required for npm OIDC trusted publishing
+  contents: read
+
+jobs:
+  publish-next:
+    name: Stage npm next snapshot
+    runs-on: ubuntu-latest
+    environment: publish
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Staged publishing requires npm CLI >= 11.15.0
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Prepare next version
+        run: npm run prepare-next
+
+      - name: Stage publish
+        run: |
+          npm stage publish -w packages/vscode-messenger-common --tag next --access public
+          npm stage publish -w packages/vscode-messenger --tag next --access public
+          npm stage publish -w packages/vscode-messenger-webview --tag next --access public

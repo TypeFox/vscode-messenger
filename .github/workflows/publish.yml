@@ -1,0 +1,56 @@
+name: Publish
+
+# Publishes vscode-messenger-common, vscode-messenger and vscode-messenger-webview to npm.
+# Triggered by pushing a semver tag (e.g. v0.7.0, v0.7.0-next.<sha>).
+#
+# Uses npm trusted publishing (OIDC) + staged publishing: the workflow stages the
+# packages on npm without requiring a token, a maintainer must then explicitly
+# approve (or reject) the staged version with 2FA on npmjs.com before it goes live.
+#
+# The vscode-messenger-devtools extension (VS Marketplace / Open VSX) is published
+# separately and is not part of this workflow.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # Required for npm OIDC trusted publishing
+  contents: read
+
+jobs:
+  publish:
+    name: Stage npm packages
+    runs-on: ubuntu-latest
+    environment: publish
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Staged publishing requires npm CLI >= 11.15.0
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Stage publish
+        run: |
+          npm stage publish -w packages/vscode-messenger-common --access public
+          npm stage publish -w packages/vscode-messenger --access public
+          npm stage publish -w packages/vscode-messenger-webview --access public
