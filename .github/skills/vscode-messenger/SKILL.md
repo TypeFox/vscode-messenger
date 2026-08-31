@@ -81,7 +81,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
 - `new Messenger(options?)` — `MessengerOptions`: `ignoreHiddenViews` (default `true`), `uniqueHandlers` (throws if a handler for the same method is registered twice — incompatible with sender-scoped handlers; see that section below), `debugLog`.
 - `registerWebviewView(view, options?)` / `registerWebviewPanel(panel, options?)` — returns a `WebviewIdMessageParticipant` with the assigned `webviewId`. Use this returned participant to address that **specific instance** (vs. the `webviewType` string which addresses **all instances** of that type). The library auto-unregisters on `onDidDispose`.
-- `onRequest(type, handler, { sender? })` / `onNotification(type, handler, { sender? })` — return a `Disposable`. **Extension side:** for **notifications**, multiple handlers for the same method stack and all fire. For **requests**, registering more than one handler for the same method is invalid — it causes a runtime error response ("Multiple matching request handlers") when that request arrives; use `sender`-scoped handlers instead if you need per-webview logic for the same method (see below). **Webview side:** registering a new handler for the same method **replaces** the previous one (last-write-wins). The optional `sender` (extension side only) filters the handler so it only fires for messages from that participant.
+- `onRequest(type, handler, { sender? })` / `onNotification(type, handler, { sender? })` — return a `Disposable`. **Both sides:** for **notifications**, multiple handlers for the same method stack and all fire. For **requests**, only one handler per method is allowed — a second registration for an overlapping scope **throws synchronously** at registration time (webview: any second request handler for the method; extension: a second handler whose `sender` scope overlaps). On the extension side, use non-overlapping `sender`-scoped handlers if you need per-webview request logic for the same method (see below). Disposing a handler removes only that specific registration. The optional `sender` (extension side only) filters the handler so it only fires for messages from that participant.
 - `sendRequest(type, receiver, params?, cancelable?)` — returns `Promise<R>`. Receiver is a `MessageParticipant` (webview by id, webview by type, or — once supported — another extension). Cannot be `BROADCAST` — throws immediately on both sides.
 - `sendNotification(type, receiver, params?)` — fire-and-forget. Receiver may be `BROADCAST`.
 
@@ -120,6 +120,48 @@ The webview-side `Messenger` constructor calls `acquireVsCodeApi()` for you. Pas
 const vscodeApi = acquireVsCodeApi();
 const messenger = new Messenger(vscodeApi);
 ```
+
+## React webviews (Vite + StrictMode)
+
+When the webview UI is a React app, create the `Messenger` **once** outside the component tree, and register handlers inside a `useEffect` that disposes them on cleanup. This is required because React StrictMode (dev) mounts every component twice (`setup → cleanup → setup`), and Vite HMR re-runs effects on every edit. Registering a **request** handler without disposing the previous one throws on the second run (`A request handler is already registered for method ...`); a **notification** handler without cleanup fires twice.
+
+```tsx
+// messenger.ts — module scope, created exactly once per webview
+import { Messenger } from 'vscode-messenger-webview';
+export const messenger = new Messenger(); // acquireVsCodeApi() called once here
+
+// App.tsx
+import { useEffect, useState } from 'react';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
+import { messenger } from './messenger';
+import { ColorModify, GetColors } from './shared/message-types';
+
+export function App() {
+    const [colors, setColors] = useState<string[]>([]);
+
+    useEffect(() => {
+        // Collect every registration and dispose it on cleanup.
+        const disposables = [
+            messenger.onNotification(ColorModify, action => {
+                if (action === 'clear') setColors([]);
+            }),
+            messenger.onRequest(GetColors, () => colors),
+        ];
+        messenger.start(); // idempotent — safe to call again after a StrictMode remount
+
+        return () => disposables.forEach(d => d.dispose());
+    }, []); // run once on mount; StrictMode runs setup→cleanup→setup, which stays balanced
+
+    return null;
+}
+```
+
+Key rules for React:
+
+- **One `Messenger` per webview, at module scope** — never `new Messenger()` inside a component body (`acquireVsCodeApi()` may be called only once, and a new instance per render leaks listeners).
+- **Register in `useEffect`, dispose in its cleanup** — the returned cleanup disposes each `Disposable`, so the StrictMode double-invoke and HMR re-runs stay balanced.
+- **`start()` is idempotent** — calling it again after a remount is a no-op (`if (this.started) return`).
+- **Avoid registering in the component body or in a `useMemo`** — those run on every render and will throw on the second request-handler registration.
 
 ## Core patterns
 
@@ -210,7 +252,7 @@ If you address by `webviewType` instead and multiple instances of that type are 
 
 ### Runtime and targeting pitfalls
 
-- **Webview handlers are last-write-wins** — on the webview side, `onRequest`/`onNotification` for the same method **replace** the previous handler. On the extension side, notification handlers stack and all fire, but registering more than one **request** handler for the same method is invalid usage: it results in a runtime error response ("Multiple matching request handlers") rather than being silently accepted. Use `uniqueHandlers: true` to catch accidental duplicate registrations at registration time (throws immediately). If you re-register on the webview during HMR or re-mount, dispose the old `Disposable` first.
+- **Duplicate request handlers throw at registration** — registering a second **request** handler for the same method throws synchronously (webview: any duplicate; extension: when the `sender` scopes overlap). This surfaces accidental double-registration immediately instead of failing later at dispatch. **Notification** handlers, by contrast, stack: registering the same method twice means the handler fires twice. Always keep the returned `Disposable` and call `dispose()` before re-registering (during HMR, re-mount, or React StrictMode) — see the React section below. The extension-side `uniqueHandlers: true` option additionally forbids **all** duplicate method registrations (requests and notifications), which is incompatible with sender-scoped handlers.
 - **`webviewType` with multiple instances races requests** — if you really want to broadcast a question and aggregate, you have to do it yourself (iterate instances by id and `Promise.all`). The library only returns the first response.
 - **`extensionId` is reserved for future use** — `ExtensionMessageParticipant.extensionId` is in the type but cross-extension messaging isn't implemented. `sendRequest` to `{ type: 'extension', extensionId }` throws. Use `HOST_EXTENSION` (no `extensionId`) for the host extension.
 - **`webviewId` changes on every register** — the id is generated fresh each time `registerWebviewView` / `registerWebviewPanel` is called. Don't persist it across sessions; capture the returned participant and use it for the lifetime of that view.

@@ -5,4 +5,5 @@
  ******************************************************************************/
 
 export * from './messages';
+export * from './util';
 export * from './cancellation';

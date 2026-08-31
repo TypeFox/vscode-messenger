@@ -252,21 +252,75 @@ describe('Extension Messenger', () => {
     });
 
     test('Handle request with multiple handlers', async () => {
-        // suppress "Multiple request handlers" warn logging
-        const warn = jest.spyOn(console, 'warn').mockImplementation(() => null);
-
         const messenger = new Messenger();
         messenger.registerWebviewView(view1);
         messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled1:' + params;
         });
-        messenger.onRequest(simpleRequest, (params: string) => {
+        // Registering a second overlapping request handler for the same method throws immediately.
+        expect(() => messenger.onRequest(simpleRequest, (params: string) => {
             return 'handled2:' + params;
-        });
-        // Simulate webview request
-        await view1.messageCallback({ ...simpleRequest, receiver: HOST_EXTENSION, id: 'fake_req_id', params: 'test' });
-        expect(view1.messages[0]).toMatchObject({ id: 'fake_req_id', error: { message: 'Multiple matching request handlers' } });
-        warn.mockRestore();
+        })).toThrow("A request handler is already registered for method 'request' with an overlapping sender scope "
+            + '(existing: undefined, new: undefined). '
+            + 'Only one request handler is allowed per method and sender scope; dispose the existing handler first or use a non-overlapping sender.');
+    });
+
+    test('Registering an onRequest handler for a method already used by onNotification throws', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.onNotification(simpleRequest, () => undefined);
+        expect(() => messenger.onRequest(simpleRequest, (params: string) => 'handled:' + params))
+            .toThrow("Cannot register a request handler for method 'request': a notification handler is already registered for the same method. "
+                + 'A method must be used exclusively for requests or for notifications.');
+    });
+
+    test('Registering an onNotification handler for a method already used by onRequest throws', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        messenger.onRequest(simpleRequest, (params: string) => 'handled:' + params);
+        expect(() => messenger.onNotification(simpleRequest, () => undefined))
+            .toThrow("Cannot register a notification handler for method 'request': a request handler is already registered for the same method. "
+                + 'A method must be used exclusively for requests or for notifications.');
+    });
+
+    test('Registering two request handlers with the same webviewId sender scope throws', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        const sender: MessageParticipant = { type: 'webview', webviewId: 'asdf' };
+        messenger.onRequest(simpleRequest, (params: string) => 'handled1:' + params, { sender });
+        expect(() => messenger.onRequest(simpleRequest, (params: string) => 'handled2:' + params, { sender }))
+            .toThrow("A request handler is already registered for method 'request' with an overlapping sender scope "
+                + '(existing: asdf, new: asdf). '
+                + 'Only one request handler is allowed per method and sender scope; dispose the existing handler first or use a non-overlapping sender.');
+    });
+
+    test('Registering two request handlers with the same webviewType sender scope throws', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        const sender: MessageParticipant = { type: 'webview', webviewType: 'asdf' };
+        messenger.onRequest(simpleRequest, (params: string) => 'handled1:' + params, { sender });
+        expect(() => messenger.onRequest(simpleRequest, (params: string) => 'handled2:' + params, { sender }))
+            .toThrow("A request handler is already registered for method 'request' with an overlapping sender scope "
+                + '(existing: asdf, new: asdf). '
+                + 'Only one request handler is allowed per method and sender scope; dispose the existing handler first or use a non-overlapping sender.');
+    });
+
+    test('With uniqueHandlers enabled, a second handler for the same method always throws', () => {
+        const messenger = new Messenger({ uniqueHandlers: true });
+        messenger.registerWebviewView(view1);
+        messenger.onNotification(simpleNotification, () => undefined);
+        expect(() => messenger.onNotification(simpleNotification, () => undefined))
+            .toThrow("A message handler is already registered for method 'notification'. Registering more than one handler "
+                + "for the same method is not allowed because the 'uniqueHandlers' option is enabled.");
+    });
+
+    test('Disposing a conflicting request handler allows re-registering an overlapping one', () => {
+        const messenger = new Messenger();
+        messenger.registerWebviewView(view1);
+        const disposable = messenger.onRequest(simpleRequest, (params: string) => 'handled1:' + params);
+        disposable.dispose();
+        // Same (undefined) sender scope as the disposed handler - should not throw now.
+        expect(() => messenger.onRequest(simpleRequest, (params: string) => 'handled2:' + params)).not.toThrow();
     });
 
     test('Handle request with multiple handlers, but none matching', async () => {

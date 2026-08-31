@@ -1,4 +1,9 @@
 {
     "preset": "ts-jest",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "globals": {
+        "ts-jest": {
+            "tsconfig": "<rootDir>/tests/tsconfig.json"
+        }
+    }
 }
