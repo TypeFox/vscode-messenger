@@ -13,6 +13,7 @@ import type {
 import {
     CancellationTokenImpl,
     Deferred,
+    HOST_EXTENSION,
     createCancelRequestMessage,
     isCancelRequestNotification,
     isMessage,
@@ -357,6 +358,33 @@ export class Messenger implements MessengerAPI {
     }
 
     /**
+     * Send a request message to the host extension and wait for a response.
+     *
+     * Shorthand for `sendRequest(type, HOST_EXTENSION, params, cancelable)`, since sending a
+     * request to the host extension is the most common case on the webview side.
+     *
+     * @template P The type of the request parameters
+     * @template R The type of the response data
+     * @param type The request type definition containing the method name
+     * @param params Optional parameters to send with the request
+     * @param cancelable Optional cancellation token to cancel the request
+     * @returns A Promise that resolves with the response data or rejects if the request fails
+     *
+     * @see {@link sendRequest} - Use this instead when the receiver is not the host extension
+     *
+     * @example
+     * ```typescript
+     * const GetUserRequest: RequestType<{ userId: string }, { name: string }> = { method: 'getUser' };
+     *
+     * // Equivalent to messenger.sendRequest(GetUserRequest, HOST_EXTENSION, { userId: '123' })
+     * const user = await messenger.sendExtensionRequest(GetUserRequest, { userId: '123' });
+     * ```
+     */
+    sendExtensionRequest<P, R>(type: RequestType<P, R>, params?: P, cancelable?: CancellationToken): Promise<R> {
+        return this.sendRequest(type, HOST_EXTENSION, params, cancelable);
+    }
+
+    /**
      * Send a notification message to another participant without expecting a response.
      *
      * Notifications are fire-and-forget messages that don't require acknowledgment or return values.
@@ -408,6 +436,30 @@ export class Messenger implements MessengerAPI {
             params: params as any
         };
         this.vscode.postMessage(message);
+    }
+
+    /**
+     * Send a notification message to the host extension without expecting a response.
+     *
+     * Shorthand for `sendNotification(type, HOST_EXTENSION, params)`, since sending a
+     * notification to the host extension is the most common case on the webview side.
+     *
+     * @template P The type of the notification parameters
+     * @param type The notification type definition containing the method name
+     * @param params Optional parameters to send with the notification
+     *
+     * @see {@link sendNotification} - Use this instead when the receiver is not the host extension
+     *
+     * @example
+     * ```typescript
+     * const UserLoggedInNotification: NotificationType<{ userId: string }> = { method: 'userLoggedIn' };
+     *
+     * // Equivalent to messenger.sendNotification(UserLoggedInNotification, HOST_EXTENSION, { userId: '123' })
+     * messenger.sendExtensionNotification(UserLoggedInNotification, { userId: '123' });
+     * ```
+     */
+    sendExtensionNotification<P>(type: NotificationType<P>, params?: P): void {
+        this.sendNotification(type, HOST_EXTENSION, params);
     }
 
     private nextMsgId = 0;
