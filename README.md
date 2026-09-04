@@ -91,6 +91,11 @@ const colors = await messenger.sendRequest(availableColorsType, HOST_EXTENSION, 
 
 // Send a notification to the host extension
 messenger.sendNotification(colorSelectType, HOST_EXTENSION, 'a85b20');
+
+// Shorthand for the (most common) case of targeting the host extension —
+// no need to pass HOST_EXTENSION explicitly
+const sameColors = await messenger.sendExtensionRequest(availableColorsType, '');
+messenger.sendExtensionNotification(colorSelectType, 'a85b20');
 ```
 
 > **Note:** `messenger.start()` must be called before any messages can be received. Forgetting it causes all incoming messages to be silently dropped.

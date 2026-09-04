@@ -118,6 +118,36 @@ describe('Webview Messenger', () => {
         );
     });
 
+    test('Send extension request', async () => {
+        const messenger = new Messenger(vsCodeApi);
+        messenger.start();
+
+        const response = await messenger.sendExtensionRequest(stringRequest, 'ping');
+
+        expect(vsCodeApi.messages[0]).toMatchObject(
+            {
+                method: 'stringRequest',
+                receiver: HOST_EXTENSION,
+                params: 'ping'
+            }
+        );
+        expect(response).toBe('result:ping');
+    });
+
+    test('Send extension notification', () => {
+        new Messenger(vsCodeApi).sendExtensionNotification(stringNotification, 'ping');
+
+        const message = vsCodeApi.messages[0] as unknown as any;
+        delete message.id;
+        expect(message).toMatchObject(
+            {
+                method: 'stringNotification',
+                receiver: HOST_EXTENSION,
+                params: 'ping'
+            }
+        );
+    });
+
     test('Handle request from an extension', async () => {
         const messenger = new Messenger(vsCodeApi);
         messenger.onRequest(stringRequest, (r: string) => {
